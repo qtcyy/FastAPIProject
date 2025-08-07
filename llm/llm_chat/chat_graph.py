@@ -5,9 +5,10 @@ from langchain_core.messages import HumanMessage
 from langchain_core.runnables import RunnableConfig
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.graph import StateGraph, START, END
+from langgraph.prebuilt import tools_condition
 
 from llm.llm_chat.chat_schema import AgentState
-from llm.llm_chat.llm_func import chatbot
+from llm.llm_chat.llm_func import chatbot, tool_node
 
 memory = MemorySaver()
 
@@ -19,8 +20,11 @@ class ChatGraph:
     def create_graph(self):
         graph_builder = StateGraph(AgentState)
         graph_builder.add_node("chatbot", chatbot)
+        graph_builder.add_node("tool_node", tool_node)
 
         graph_builder.add_edge(START, "chatbot")
+        graph_builder.add_conditional_edges("chatbot", tools_condition)
+        graph_builder.add_edge("tool_node", "chatbot")
 
         return graph_builder.compile(checkpointer=memory)
 

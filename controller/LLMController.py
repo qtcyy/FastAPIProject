@@ -18,6 +18,7 @@ class LLMController:
         self.router.post("/chat_agent")(self.chat_agent)
         self.router.get("/chat/messages/{thread_id}")(self.get_chat_messages)
         self.router.delete("/chat/messages/{thread_id}")(self.clean_thread_messages)
+        self.router.post("/chat/tools")(self.chat_with_tools)
 
     async def hello(self):
         return {"message": "Hello World!"}
@@ -38,3 +39,13 @@ class LLMController:
 
     async def clean_thread_messages(self, thread_id: str):
         return await self.llm_service.clean_thread_messages(thread_id=thread_id)
+
+    async def chat_with_tools(self, request: ChatAgentRequest):
+        """
+        添加工具的对话
+        :param request: 对话请求
+        :return: sse返回回复内容
+        """
+        return await self.llm_service.chat_with_tools(
+            query=request.query, thread_id=request.thread_id
+        )

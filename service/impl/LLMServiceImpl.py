@@ -3,6 +3,7 @@ from typing import Any, override
 from overrides import overrides
 
 from llm.llm_chat.chat_graph import AgentClass
+from llm.llm_chat_with_tools.chatbot.ChatBot import ChatBot
 from llm.llm_praser.llm_out import LLMOut
 from llm.llm_praser.llm_schema import Houses
 from service.LLMService import LLMService
@@ -13,6 +14,7 @@ class LLMServiceImpl(LLMService):
     def __init__(self):
         super().__init__()
         self.llm_out = LLMOut()
+        self.chatbot = ChatBot()
 
     @override
     async def test_service(self):
@@ -57,3 +59,15 @@ class LLMServiceImpl(LLMService):
             return {"message": "success"}
         else:
             return {"message": "error", "error": result}
+
+    @override
+    async def chat_with_tools(self, query: str, thread_id: str) -> Any:
+        return StreamingResponse(
+            self.chatbot.generate(query=query, thread_id=thread_id),
+            media_type="text/event-stream",
+            headers={
+                "Cache-Control": "no-cache",
+                "Connection": "keep-alive",
+                "X-Accel-Buffering": "no",
+            },
+        )

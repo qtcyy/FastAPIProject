@@ -20,3 +20,6 @@ class LLMService(ABC):
 
     @abstractmethod
     async def clean_thread_messages(self, thread_id: str) -> Any: ...
+
+    @abstractmethod
+    async def chat_with_tools(self, query: str, thread_id: str) -> Any: ...
