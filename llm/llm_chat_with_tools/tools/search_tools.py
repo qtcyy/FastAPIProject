@@ -1,3 +1,5 @@
+from typing import List
+
 import requests
 from langchain.tools import tool
 
@@ -35,23 +37,33 @@ async def search_tool(query: str) -> str:
     return result
 
 
-@tool
-def web_crawler(link: str) -> str:
+# @tool
+def web_crawler(links: List[str]) -> str:
     """
     网页访问工具，可以使用该工具访问具体网页的内容
-    :param link: 网页地址
-    :return: 网页内容
+    :param links: 链接字符串序列
+    :return: 序列中网页的内容
     """
+    crawl_request = [{"url": link} for link in links]
     response = requests.post(
         url=crawl_url,
         headers={
             "Authorization": f"Bearer {search_api_key}",
         },
-        json={"url": link},
+        json=crawl_request,
     )
     response.raise_for_status()
     response = response.json()
-    # print(f"response: {response}")
+    print(f"response: {response}")
 
-    print(f"网页访问内容：{response['results']['content']}")
-    return response["results"]["content"]
+    # print(f"网页访问内容：{response['results']['content']}")
+    return f"response: {response}"
+
+
+# def test():
+#     links = ["https://www.langchain.com/langgraph", "https://fastapi.tiangolo.com/"]
+#     web_crawler(links)
+#
+#
+# if __name__ == "__main__":
+#     test()
