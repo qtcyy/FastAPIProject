@@ -16,26 +16,12 @@ class LLMController:
 
     def _setup_router(self):
         self.router.post("/house/")(self.get_house_info)
-        self.router.post("/chat_agent")(self.chat_agent)
-        self.router.get("/chat/messages/{thread_id}")(self.get_chat_messages)
-        self.router.delete("/chat/messages/{thread_id}")(self.clean_thread_messages)
         self.router.post("/chat/tools")(self.chat_with_tools)
         self.router.get("/chat/history/{thread_id}")(self.get_history)
         self.router.delete("/chat/history/{thread_id}")(self.delete_thread)
 
     async def get_house_info(self, request: HouseInfoRequest):
         return await self.llm_service.get_house_info_service(request.query)
-
-    async def chat_agent(self, request: ChatAgentRequest):
-        return await self.llm_service.chat_agent(
-            query=request.query, thread_id=request.thread_id
-        )
-
-    async def get_chat_messages(self, thread_id: str):
-        return await self.llm_service.get_thread_messages(thread_id=thread_id)
-
-    async def clean_thread_messages(self, thread_id: str):
-        return await self.llm_service.clean_thread_messages(thread_id=thread_id)
 
     async def chat_with_tools(self, request: ChatAgentRequest):
         """
@@ -48,7 +34,17 @@ class LLMController:
         )
 
     async def get_history(self, thread_id: str) -> List[BaseMessage]:
+        """
+        获取聊天历史记录
+        :param thread_id: 线程ID
+        :return: 历史记录
+        """
         return await self.llm_service.get_history(thread_id=thread_id)
 
     async def delete_thread(self, thread_id: str) -> dict[str, Any]:
+        """
+        删除线程
+        :param thread_id: 线程ID
+        :return: 删除状态
+        """
         return await self.llm_service.delete_thread(thread_id=thread_id)
