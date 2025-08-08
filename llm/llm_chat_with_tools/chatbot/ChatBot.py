@@ -11,12 +11,15 @@ from langchain_core.messages import (
     AIMessageChunk,
     ToolMessage,
 )
+from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
 from langchain_deepseek import ChatDeepSeek
 import os
 
+from langchain_openai import ChatOpenAI
 from langgraph.checkpoint.memory import MemorySaver
+from langgraph.config import get_stream_writer
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.graph import add_messages, StateGraph, START
 
@@ -41,9 +44,9 @@ SimplePrompt = "你是一个有用的ai助手。在调用网路搜索工具后�
 
 
 class ChatBot:
-    def __init__(self):
+    def __init__(self, model: str = "Qwen/Qwen2.5-7B-Instruct"):
         self.llm = ChatDeepSeek(
-            model="deepseek-ai/DeepSeek-R1",
+            model=model,
             verbose=True,
             temperature=0.8,
         )
@@ -60,11 +63,21 @@ class ChatBot:
         self.graph = self.create_graph()
 
     async def chatbot(self, state: ChatState):
+        # writer = get_stream_writer()
         messages = state["messages"]
         print(f"messages: {messages}")
         response = await self.chain.ainvoke({"messages": messages})
-        print(response)
+        # writer(response)
+        # print(f"response: {response}")
+        # print(f"response type: {type(response)}")
         return {"messages": response}
+        # writer = get_stream_writer()
+        # full_message = ""
+        # async for chunk in self.chain.astream({"messages": messages}):
+        #     # print(type(chunk))
+        #     writer(chunk)
+        #     full_message += chunk.content
+        # return {"messages": AIMessage(content=full_message)}
 
     def create_graph(self):
         graph_builder = StateGraph(ChatState)
@@ -87,15 +100,17 @@ class ChatBot:
         config: RunnableConfig = RunnableConfig(configurable={"thread_id": thread_id})
         full_messages = ""
 
+        print("Start Chat:")
         async for chunk in self.graph.astream(
             {"messages": HumanMessage(content=query)},
             config=config,
             stream_mode="messages",
-            print_mode=["messages"],
         ):
+            # print(chunk)
             event = chunk[0]
             event_config = chunk[1]
             if isinstance(event, AIMessageChunk):
+                print(event.content, end="")
                 data = {
                     "id": event.id,
                     "messages": event.content,
@@ -103,13 +118,22 @@ class ChatBot:
                     "type": "ai",
                     "thread_id": event_config["thread_id"],
                 }
-                if event.additional_kwargs and hasattr(
-                    event.additional_kwargs, "tool_calls"
-                ):
-                    data.update({"type": "ai_tool_calls"})
-                else:
-                    full_messages += event.content
-                # full_messages += event.content
+                if event.additional_kwargs:
+                    if event.additional_kwargs.get("tool_calls"):
+                        data.update({"type": "ai_tool_calls"})
+                    if event.additional_kwargs.get("reasoning_content"):
+                        reasoning_content = event.additional_kwargs.get(
+                            "reasoning_content"
+                        )
+                        print(reasoning_content, end="")
+                        data.update(
+                            {
+                                "type": "ai_reasoning_content",
+                                "messages": reasoning_content,
+                            }
+                        )
+
+                full_messages += event.content
                 yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
             elif isinstance(event, ToolMessage):
                 data = {
@@ -121,18 +145,29 @@ class ChatBot:
                     "thread_id": event_config["thread_id"],
                 }
                 yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
-        print(f"full_messages: {full_messages}")
+        print(f"\nfull_messages:\n {full_messages}")
         yield "data: [DONE]\n"
 
     async def generate_test(self, query: str):
-        response = await self.chain.ainvoke({"messages": [HumanMessage(content=query)]})
-        print(response)
+        config: RunnableConfig = RunnableConfig(configurable={"thread_id": "1"})
+        full_messages = ""
+
+        print("Start Chat: ")
+        async for chunk in self.graph.astream(
+            {"messages": HumanMessage(content=query)},
+            config=config,
+            stream_mode="messages",
+        ):
+            print(chunk[0].content, end="")
+            if isinstance(chunk[0], AIMessageChunk):
+                full_messages += chunk[0].content
+
+        # print(f"full_messages: {full_messages}")
 
 
-#
 # async def main():
 #     bot = ChatBot()
-#     await bot.generate_test("你好")
+#     await bot.generate_test("查询杭州的天气")
 #
 #
 # if __name__ == "__main__":

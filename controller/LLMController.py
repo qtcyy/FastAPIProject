@@ -47,5 +47,5 @@ class LLMController:
         :return: sse返回回复内容
         """
         return await self.llm_service.chat_with_tools(
-            query=request.query, thread_id=request.thread_id
+            query=request.query, thread_id=request.thread_id, model=request.model
         )

@@ -1,7 +1,14 @@
+import asyncio
+import json
 from typing import List
 
 import requests
 from langchain.tools import tool
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import ChatPromptTemplate
+from langchain_core.runnables import RunnableConfig
+from langchain_openai import ChatOpenAI
+from langgraph.config import get_stream_writer
 
 search_url = "https://api.search1api.com/search"
 crawl_url = "https://api.search1api.com/crawl"
@@ -15,6 +22,10 @@ async def search_tool(query: str) -> str:
     :param query: 要搜索的内容
     :return: 搜索引擎给出的结果
     """
+    # writer = get_stream_writer()
+    # writer(f"web search: {query}")
+    print(f"query: {query}")
+    # await label_extra(query)
     response = requests.post(
         url=search_url,
         headers={
@@ -34,10 +45,11 @@ async def search_tool(query: str) -> str:
         result += "\n"
 
     print(f"网页搜索内容：{result}")
+    # writer(f"web search result: {result}")
     return result
 
 
-# @tool
+@tool
 def web_crawler(links: List[str]) -> str:
     """
     网页访问工具，可以使用该工具访问具体网页的内容
@@ -60,10 +72,48 @@ def web_crawler(links: List[str]) -> str:
     return f"response: {response}"
 
 
-# def test():
-#     links = ["https://www.langchain.com/langgraph", "https://fastapi.tiangolo.com/"]
-#     web_crawler(links)
+async def label_extra(query):
+    print(f"query2: {query}")
+    llm = ChatOpenAI(
+        model_name="Qwen/Qwen2.5-32B-Instruct",
+        name="tool_llm",
+        temperature=0.8,
+        streaming=False,
+        max_tokens=1024,
+        base_url="https://api-inference.modelscope.cn/v1",
+        api_key="a5a8fdf1-e914-4c1e-ac56-82888ec1be87",
+    )
+    config: RunnableConfig = {"configurable": {"thread_id": "tool_thread"}}
+    prompt = ChatPromptTemplate.from_messages(
+        [
+            (
+                "system",
+                f"你是一个智能助手 专门用来对内容进行标签抽取 标签抽取方式有关键字抽取和语义抽取 特别是隐含语义抽取 然后返回标签列表\n"
+                "要求：\n"
+                "- 严格返回 JSON 数组格式"
+                "- 禁止输出除 JSON 外的任何文字\n"
+                "- 标签必须精炼准确",
+            ),
+            ("human", "{input}"),
+        ]
+    )
+    chain = prompt | llm | StrOutputParser()
+
+    # res = await chain.ainvoke(input={"input": query})
+    res = ""
+    async for chunk in chain.astream(input={"input": query}, config=config):
+        res += chunk
+    print(f"label_extra: {type(res)}, {res}")
+    res = json.loads(res)
+    print(f"json res: {res}")
+    return res
+
+
+# async def test():
+#     # links = ["https://www.langchain.com/langgraph", "https://fastapi.tiangolo.com/"]
+#     # web_crawler(links)
+#     await label_extra("杭州天气")
 #
 #
 # if __name__ == "__main__":
-#     test()
+#     asyncio.run(test())
