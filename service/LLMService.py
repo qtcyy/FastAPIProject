@@ -1,5 +1,7 @@
 from abc import abstractmethod, ABC
-from typing import Any
+from typing import Any, List
+
+from langchain_core.messages import BaseMessage
 
 
 class LLMService(ABC):
@@ -23,3 +25,9 @@ class LLMService(ABC):
 
     @abstractmethod
     async def chat_with_tools(self, query: str, thread_id: str, model: str) -> Any: ...
+
+    @abstractmethod
+    async def get_history(self, thread_id: str) -> List[BaseMessage]: ...
+
+    @abstractmethod
+    async def delete_thread(self, thread_id: str) -> Any: ...

@@ -1,4 +1,7 @@
+from typing import List, Any
+
 from fastapi import APIRouter
+from langchain_core.messages import BaseMessage
 
 from service.impl.LLMServiceImpl import LLMService, LLMServiceImpl
 from vo.ChatAgentRequest import ChatAgentRequest
@@ -19,6 +22,8 @@ class LLMController:
         self.router.get("/chat/messages/{thread_id}")(self.get_chat_messages)
         self.router.delete("/chat/messages/{thread_id}")(self.clean_thread_messages)
         self.router.post("/chat/tools")(self.chat_with_tools)
+        self.router.get("/chat/history/{thread_id}")(self.get_history)
+        self.router.delete("/chat/history/{thread_id}")(self.delete_thread)
 
     async def hello(self):
         return {"message": "Hello World!"}
@@ -49,3 +54,9 @@ class LLMController:
         return await self.llm_service.chat_with_tools(
             query=request.query, thread_id=request.thread_id, model=request.model
         )
+
+    async def get_history(self, thread_id: str) -> List[BaseMessage]:
+        return await self.llm_service.get_history(thread_id=thread_id)
+
+    async def delete_thread(self, thread_id: str) -> dict[str, Any]:
+        return await self.llm_service.delete_thread(thread_id=thread_id)

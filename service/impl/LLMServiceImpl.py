@@ -1,5 +1,6 @@
-from typing import Any, override
+from typing import Any, override, List
 
+from langchain_core.messages import BaseMessage
 from overrides import overrides
 
 from llm.llm_chat.chat_graph import AgentClass
@@ -74,3 +75,26 @@ class LLMServiceImpl(LLMService):
                 "X-Accel-Buffering": "no",
             },
         )
+
+    @override
+    async def get_history(self, thread_id: str) -> List[BaseMessage]:
+        """
+        获取历史记录
+        :param thread_id: 线程ID
+        :return: 历史记录
+        :type: List[str]
+        """
+        return await self.chatbot.get_history(thread_id=thread_id)
+
+    @override
+    async def delete_thread(self, thread_id: str) -> dict[str, Any]:
+        """
+        删除线程
+        :param thread_id: 线程ID
+        :return: 删除状态
+        """
+        state = await self.chatbot.delete_history(thread_id=thread_id)
+        if state:
+            return {"message": "success"}
+        else:
+            return {"message": "error"}
