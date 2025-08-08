@@ -72,21 +72,10 @@ class ChatBot:
         :param state: langgraph状态
         :return: 新langgraph状态，包含llm_out
         """
-        # writer = get_stream_writer()
         messages = state["messages"]
         print(f"messages: {messages}")
         response = await self.chain.ainvoke({"messages": messages})
-        # writer(response)
-        # print(f"response: {response}")
-        # print(f"response type: {type(response)}")
         return {"messages": response}
-        # writer = get_stream_writer()
-        # full_message = ""
-        # async for chunk in self.chain.astream({"messages": messages}):
-        #     # print(type(chunk))
-        #     writer(chunk)
-        #     full_message += chunk.content
-        # return {"messages": AIMessage(content=full_message)}
 
     def create_graph(self):
         graph_builder = StateGraph(ChatState)
@@ -116,44 +105,7 @@ class ChatBot:
             stream_mode="messages",
         ):
             # print(chunk)
-            event = chunk[0]
-            event_config = chunk[1]
-            if isinstance(event, AIMessageChunk):
-                print(event.content, end="")
-                data = {
-                    "id": event.id,
-                    "messages": event.content,
-                    "timestamp": time.time(),
-                    "type": "ai",
-                    "thread_id": event_config["thread_id"],
-                }
-                if event.additional_kwargs:
-                    if event.additional_kwargs.get("tool_calls"):
-                        data.update({"type": "ai_tool_calls"})
-                    if event.additional_kwargs.get("reasoning_content"):
-                        reasoning_content = event.additional_kwargs.get(
-                            "reasoning_content"
-                        )
-                        print(reasoning_content, end="")
-                        data.update(
-                            {
-                                "type": "ai_reasoning_content",
-                                "messages": reasoning_content,
-                            }
-                        )
-
-                full_messages += event.content
-                yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
-            elif isinstance(event, ToolMessage):
-                data = {
-                    "id": event.id,
-                    "messages": event.content,
-                    "timestamp": time.time(),
-                    "type": "tool",
-                    "tool_name": event.name,
-                    "thread_id": event_config["thread_id"],
-                }
-                yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+            yield f"data: {json.dumps(dict(chunk[0]), ensure_ascii=False)}\n\n"
         print(f"\nfull_messages:\n {full_messages}")
         yield "data: [DONE]\n"
 
