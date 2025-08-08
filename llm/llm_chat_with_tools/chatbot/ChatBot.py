@@ -40,7 +40,10 @@ class ChatState(TypedDict):
 
 
 memory = MemorySaver()
-SimplePrompt = "你是一个有用的ai助手。在调用网路搜索工具后如需获取详细信息，请调用网页访问工具获取网页详细信息。注意标出信息来源。"
+SimplePrompt = (
+    "你是一个有用的ai助手，请帮助我解决问题。请优先使用网络工具以获取最新且真实的数据。"
+    "在调用网络搜索工具后如需获取详细信息，请调用网页访问工具获取网页详细信息。注意标出信息来源。"
+)
 
 
 class ChatBot:
@@ -105,6 +108,10 @@ class ChatBot:
             stream_mode="messages",
         ):
             # print(chunk)
+            event = chunk[0]
+            if isinstance(event, AIMessageChunk):
+                full_messages += event.content
+                print(event.content, end="")
             yield f"data: {json.dumps(dict(chunk[0]), ensure_ascii=False)}\n\n"
         print(f"\nfull_messages:\n {full_messages}")
         yield "data: [DONE]\n"
