@@ -15,8 +15,6 @@ class LLMController:
         self._setup_router()
 
     def _setup_router(self):
-        self.router.get("/hello")(self.hello)
-        self.router.get("/test")(self.test)
         self.router.post("/house/")(self.get_house_info)
         self.router.post("/chat_agent")(self.chat_agent)
         self.router.get("/chat/messages/{thread_id}")(self.get_chat_messages)
@@ -24,12 +22,6 @@ class LLMController:
         self.router.post("/chat/tools")(self.chat_with_tools)
         self.router.get("/chat/history/{thread_id}")(self.get_history)
         self.router.delete("/chat/history/{thread_id}")(self.delete_thread)
-
-    async def hello(self):
-        return {"message": "Hello World!"}
-
-    async def test(self):
-        return await self.llm_service.test_service()
 
     async def get_house_info(self, request: HouseInfoRequest):
         return await self.llm_service.get_house_info_service(request.query)
