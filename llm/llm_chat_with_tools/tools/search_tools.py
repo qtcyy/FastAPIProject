@@ -18,7 +18,7 @@ search_api_key = "F016AD79-D8F4-4A2E-B53F-8578A4D43DDB"
 @tool
 async def search_tool(query: str) -> str:
     """
-    从网上搜索内容
+    搜索引擎工具，从网上搜索内容，返回内容包含（网页标题，网页简要内容，网页链接）
     :param query: 要搜索的内容
     :return: 搜索引擎给出的结果
     """
@@ -31,7 +31,7 @@ async def search_tool(query: str) -> str:
         headers={
             "Authorization": f"Bearer {search_api_key}",
         },
-        json={"query": query, "search_service": "google"},
+        json={"query": query, "search_service": "google", "max_results": 10},
     )
     response.raise_for_status()
     response = response.json()
@@ -44,7 +44,7 @@ async def search_tool(query: str) -> str:
         result += "link: " + res["link"] + "\n"
         result += "\n"
 
-    print(f"网页搜索内容：{result}")
+    print(f"\n网页搜索内容：\n{result}")
     # writer(f"web search result: {result}")
     return result
 
@@ -52,7 +52,7 @@ async def search_tool(query: str) -> str:
 @tool
 def web_crawler(links: List[str]) -> str:
     """
-    网页访问工具，可以使用该工具访问具体网页的内容
+    批量网页访问工具，可以使用该工具访问具体网页的内容
     :param links: 链接字符串序列
     :return: 序列中网页的内容
     """
@@ -66,7 +66,7 @@ def web_crawler(links: List[str]) -> str:
     )
     response.raise_for_status()
     response = response.json()
-    print(f"response: {response}")
+    print(f"\n网页爬取内容:\n{response}")
 
     # print(f"网页访问内容：{response['results']['content']}")
     return f"response: {response}"

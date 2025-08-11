@@ -5,6 +5,7 @@ from langchain_core.messages import BaseMessage
 
 from service.impl.LLMServiceImpl import LLMService, LLMServiceImpl
 from vo.ChatAgentRequest import ChatAgentRequest
+from vo.EditMessageRequest import EditMessageRequest, EditWithIDRequest
 from vo.HouseInfoRequest import HouseInfoRequest
 
 
@@ -19,6 +20,13 @@ class LLMController:
         self.router.post("/chat/tools")(self.chat_with_tools)
         self.router.get("/chat/history/{thread_id}")(self.get_history)
         self.router.delete("/chat/history/{thread_id}")(self.delete_thread)
+        self.router.post("/chat/history/edit")(self.edit_message)
+        self.router.post("/chat/history/edit/id")(self.edit_message_with_id)
+        self.router.post("/chat/history/delete")(self.delete_message)
+        self.router.post("/chat/history/delete/id")(self.delete_message_with_id)
+        self.router.post("/chat/history/delete/after")(
+            self.delete_messages_after_with_id
+        )
 
     async def get_house_info(self, request: HouseInfoRequest):
         return await self.llm_service.get_house_info_service(request.query)
@@ -48,3 +56,57 @@ class LLMController:
         :return: 删除状态
         """
         return await self.llm_service.delete_thread(thread_id=thread_id)
+
+    async def edit_message(self, request: EditMessageRequest) -> dict[str, Any]:
+        """
+        编辑消息
+        :param request: 请求体
+        :return: 请求状态
+        """
+        return await self.llm_service.edit_message(
+            request.thread_id, request.message_idx, request.new_content
+        )
+
+    async def edit_message_with_id(self, request: EditWithIDRequest) -> dict[str, Any]:
+        """
+        根据消息ID编辑消息
+        :param request: 请求体
+        :return: 请求状态
+        """
+        return await self.llm_service.edit_message_with_id(
+            request.thread_id, request.message_idx, request.new_content
+        )
+
+    async def delete_message(self, request: EditMessageRequest) -> dict[str, Any]:
+        """
+        删除消息
+        :param request: 请求体
+        :return: 请求状态
+        """
+        return await self.llm_service.delete_message(
+            request.thread_id, request.message_idx
+        )
+
+    async def delete_message_with_id(
+        self, request: EditWithIDRequest
+    ) -> dict[str, Any]:
+        """
+        根据消息ID删除消息
+        :param request: 请求体
+        :return: 请求状态
+        """
+        return await self.llm_service.delete_message_with_id(
+            request.thread_id, request.message_idx
+        )
+
+    async def delete_messages_after_with_id(
+        self, request: EditWithIDRequest
+    ) -> dict[str, Any]:
+        """
+        删除指定消息后面的所有消息，包括该消息
+        :param request: 请求体
+        :return: 请求状态
+        """
+        return await self.llm_service.delete_messages_after_with_id(
+            request.thread_id, request.message_id
+        )

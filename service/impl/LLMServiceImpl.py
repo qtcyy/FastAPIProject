@@ -97,3 +97,85 @@ class LLMServiceImpl(LLMService):
             return {"message": "success"}
         else:
             return {"message": "error"}
+
+    @override
+    async def edit_message(
+        self, thread_id: str, message_idx: int, new_content: str
+    ) -> dict[str, Any]:
+        """
+        编辑消息服务
+        :param thread_id: 线程ID
+        :param message_idx: 消息位置
+        :param new_content: 新内容
+        :return: 更新状态
+        """
+        status = await self.chatbot.edit_message(thread_id, message_idx, new_content)
+        if status:
+            return {"message": "success", "status": True}
+        else:
+            return {"message": "failed", "status": False}
+
+    @override
+    async def edit_message_with_id(
+        self, thread_id: str, message_id: str, new_content: str
+    ) -> dict[str, Any]:
+        """
+        根据消息ID编辑消息
+        :param thread_id: 线程ID
+        :param message_id: 消息ID
+        :param new_content: 新消息内容
+        :return: 修改状态
+        """
+        status = await self.chatbot.edit_message_with_id(
+            thread_id, message_id, new_content
+        )
+        if status:
+            return {"message": "success", "status": True}
+        else:
+            return {"message": "failed", "status": False}
+
+    @override
+    async def delete_message(self, thread_id: str, message_idx: int) -> dict[str, Any]:
+        """
+        删除消息
+        :param thread_id: 线程ID
+        :param message_idx:
+        :return: 删除状态
+        """
+        status = await self.chatbot.delete_message(thread_id, message_idx)
+        if status:
+            return {"message": "success", "status": True}
+        else:
+            return {"message": "failed", "status": False}
+
+    @override
+    async def delete_message_with_id(
+        self, thread_id: str, message_id: str
+    ) -> dict[str, Any]:
+        """
+        根据消息ID删除消息
+        :param thread_id: 线程ID
+        :param message_id: 消息ID
+        :return: 删除状态
+        """
+        status = await self.chatbot.delete_message_with_id(thread_id, message_id)
+        if status:
+            return {"message": "success", "status": True}
+        else:
+            return {"message": "failed", "status": False}
+
+    @override
+    async def delete_messages_after_with_id(
+        self, thread_id: str, message_id: str
+    ) -> dict[str, Any]:
+        """
+        删除指定消息后面的所有消息，包括该消息
+        :param thread_id: 线程ID
+        :param message_id: 消息ID
+        :return: 删除状态
+        """
+        status = await self.chatbot.delete_messages_after_with_id(thread_id, message_id)
+        if status:
+            return {"message": "success", "status": True}
+        else:
+            return {"message": "failed", "status": False}
