@@ -5,6 +5,7 @@ from langchain_core.messages import BaseMessage
 
 from service.impl.LLMServiceImpl import LLMService, LLMServiceImpl
 from vo.ChatAgentRequest import ChatAgentRequest
+from vo.EditMessageRequest import EditMessageRequest
 from vo.HouseInfoRequest import HouseInfoRequest
 
 
@@ -19,6 +20,7 @@ class LLMController:
         self.router.post("/chat/tools")(self.chat_with_tools)
         self.router.get("/chat/history/{thread_id}")(self.get_history)
         self.router.delete("/chat/history/{thread_id}")(self.delete_thread)
+        self.router.post("/chat/history/edit/")(self.edit_message)
 
     async def get_house_info(self, request: HouseInfoRequest):
         return await self.llm_service.get_house_info_service(request.query)
@@ -48,3 +50,13 @@ class LLMController:
         :return: 删除状态
         """
         return await self.llm_service.delete_thread(thread_id=thread_id)
+
+    async def edit_message(self, request: EditMessageRequest):
+        """
+        编辑消息
+        :param request: 请求体
+        :return: 请求状态
+        """
+        return await self.llm_service.edit_message(
+            request.thread_id, request.message_idx, request.new_content
+        )

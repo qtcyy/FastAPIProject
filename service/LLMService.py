@@ -31,3 +31,8 @@ class LLMService(ABC):
 
     @abstractmethod
     async def delete_thread(self, thread_id: str) -> Any: ...
+
+    @abstractmethod
+    async def edit_message(
+        self, thread_id: str, message_idx: int, new_content: str
+    ) -> dict[str, Any]: ...

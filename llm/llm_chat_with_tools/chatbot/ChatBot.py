@@ -146,6 +146,32 @@ class ChatBot:
             print(f"Error deleting history: {str(e)}")
             return False
 
+    async def edit_message(
+        self, thread_id: str, message_idx: int, new_content: str
+    ) -> bool:
+        """
+        编辑消息
+        :param thread_id: 线程ID
+        :param message_idx: 消息位置
+        :param new_content: 新内容
+        :return: bool 编辑状态
+        """
+        config = RunnableConfig(configurable={"thread_id": thread_id})
+        try:
+            state = await self.graph.aget_state(config)
+            messages = state.values.get("messages", [])
+            if 0 <= message_idx < len(messages):
+                if isinstance(messages[message_idx], HumanMessage):
+                    messages[message_idx] = HumanMessage(content=new_content)
+                elif isinstance(messages[message_idx], AIMessage):
+                    messages[message_idx] = AIMessage(content=new_content)
+                return True
+            else:
+                raise f"Message index {message_idx} out of range"
+        except Exception as e:
+            print(f"Error on edit message: {str(e)}")
+            return False
+
     async def generate_test(self, query: str):
         """
         测试方法（测试用）

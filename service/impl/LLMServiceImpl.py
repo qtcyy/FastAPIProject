@@ -97,3 +97,20 @@ class LLMServiceImpl(LLMService):
             return {"message": "success"}
         else:
             return {"message": "error"}
+
+    @override
+    async def edit_message(
+        self, thread_id: str, message_idx: int, new_content: str
+    ) -> dict[str, Any]:
+        """
+        编辑消息服务
+        :param thread_id: 线程ID
+        :param message_idx: 消息位置
+        :param new_content: 新内容
+        :return: 更新状态
+        """
+        status = await self.chatbot.edit_message(thread_id, message_idx, new_content)
+        if status:
+            return {"message": "success", "status": True}
+        else:
+            return {"message": "failed", "status": False}
