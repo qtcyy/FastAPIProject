@@ -3,6 +3,7 @@ import json
 import time
 from typing import TypedDict, Annotated, Sequence, List
 
+import psycopg
 from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import (
     BaseMessage,
@@ -22,9 +23,12 @@ from langgraph.checkpoint.memory import MemorySaver
 from langgraph.config import get_stream_writer, get_store
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.graph import add_messages, StateGraph, START
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from llm.llm_chat_with_tools.tools.calculate_tools import calculate_tools
 from llm.llm_chat_with_tools.tools.search_tools import search_tool, web_crawler
+
+import asyncpg
 
 os.environ["OPENAI_API_KEY"] = "sk-klxcwiidfejlwzupobhtdvwkzdvwtsxqekqucykewmyfryis"
 os.environ["OPENAI_API_BASE"] = "https://api.siliconflow.cn/v1/chat/completions"
@@ -39,7 +43,13 @@ class ChatState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
 
 
-memory = MemorySaver()
+async def create_memory():
+    conn = await asyncpg.connect("postgresql://qtcyy:12345678@localhost:5432/chatbot")
+    return AsyncPostgresSaver(conn)
+
+
+memory = create_memory()
+
 SimplePrompt = (
     "你是一个有用的ai助手，请帮助我解决问题。请优先使用网络工具以获取最新且真实的数据。"
     "在调用网络搜索工具后如需获取详细信息，请调用网页访问工具获取网页详细信息。注意标出信息来源。"
@@ -67,7 +77,19 @@ class ChatBot:
 
         self.chain = self.prompt | self.llm_with_tools
 
-        self.graph = self.create_graph()
+        # self.graph = self.create_graph()
+        self.memory = None
+        self.graph = None
+
+    async def initialize(self):
+        conn = await psycopg.AsyncConnection.connect(
+            "postgresql://qtcyy:12345678@localhost:5432/chatbot",
+            autocommit=True,
+        )
+        self.memory = AsyncPostgresSaver(conn)
+
+        await self.memory.setup()
+        self.graph = await self.create_graph()
 
     async def chatbot(self, state: ChatState):
         """
@@ -80,7 +102,10 @@ class ChatBot:
         response = await self.chain.ainvoke({"messages": messages})
         return {"messages": response}
 
-    def create_graph(self):
+    async def create_graph(self):
+        if self.memory is None:
+            raise ValueError("Memory not initialized. Call initialize() first.")
+
         graph_builder = StateGraph(ChatState)
         graph_builder.add_node("chatbot", self.chatbot, metadata={"name": "chatbot"})
         graph_builder.add_node("tools", self.tool_node, metadata={"name": "search"})
@@ -89,7 +114,7 @@ class ChatBot:
         graph_builder.add_conditional_edges("chatbot", tools_condition)
         graph_builder.add_edge("tools", "chatbot")
 
-        return graph_builder.compile(checkpointer=memory)
+        return graph_builder.compile(checkpointer=self.memory)
 
     async def generate(self, query: str, thread_id: str):
         """
@@ -98,6 +123,9 @@ class ChatBot:
         :param thread_id: 线程id
         :return: stream返回llm内容
         """
+        if self.graph is None:
+            await self.initialize()
+
         config: RunnableConfig = RunnableConfig(configurable={"thread_id": thread_id})
         full_messages = ""
 
@@ -122,6 +150,9 @@ class ChatBot:
         :param thread_id: 对话线程ID
         :return: 历史记录
         """
+        if self.graph is None:
+            await self.initialize()
+
         config: RunnableConfig = RunnableConfig(configurable={"thread_id": thread_id})
         try:
             state = await self.graph.aget_state(config)
@@ -139,8 +170,11 @@ class ChatBot:
         :param thread_id: 线程ID
         :return: 删除状态
         """
+        if self.graph is None:
+            await self.initialize()
+
         try:
-            await memory.adelete_thread(thread_id)
+            await self.memory.adelete_thread(thread_id)
             return True
         except Exception as e:
             print(f"Error deleting history: {str(e)}")
@@ -156,6 +190,9 @@ class ChatBot:
         :param new_content: 新内容
         :return: bool 编辑状态
         """
+        if self.graph is None:
+            await self.initialize()
+
         config = RunnableConfig(configurable={"thread_id": thread_id})
         try:
             state = await self.graph.aget_state(config)
@@ -167,7 +204,7 @@ class ChatBot:
                     messages[message_idx] = AIMessage(content=new_content)
                 else:
                     raise "Unsupported message type"
-                await memory.adelete_thread(thread_id)
+                await self.memory.adelete_thread(thread_id)
                 await self.graph.aupdate_state(config, {"messages": messages})
                 return True
             else:
@@ -186,6 +223,9 @@ class ChatBot:
         :param new_content: 新消息内容
         :return: 修改状态
         """
+        if self.graph is None:
+            await self.initialize()
+
         config = RunnableConfig(configurable={"thread_id": thread_id})
         try:
             state = await self.graph.aget_state(config)
@@ -202,6 +242,9 @@ class ChatBot:
                     messages[idx] = HumanMessage(new_content)
                 else:
                     raise "Unsupported message type"
+
+                await self.memory.adelete_thread(thread_id)
+                await self.graph.aupdate_state(config, {"messages": messages})
                 return True
             else:
                 raise f"Unable to find messages index {message_id}"
@@ -216,13 +259,16 @@ class ChatBot:
         :param message_idx: 消息位置
         :return: 删除状态
         """
+        if self.graph is None:
+            await self.initialize()
+
         config = RunnableConfig(configurable={"thread_id": thread_id})
         try:
             state = await self.graph.aget_state(config)
             messages = state.values.get("messages", [])
             if 0 <= message_idx < len(messages):
                 messages.pop(message_idx)
-                await memory.adelete_thread(thread_id)
+                await self.memory.adelete_thread(thread_id)
                 await self.graph.aupdate_state(config, {"messages", messages})
                 return True
             else:
@@ -238,6 +284,9 @@ class ChatBot:
         :param message_id: 消息ID
         :return: 删除状态
         """
+        if self.graph is None:
+            await self.initialize()
+
         config = RunnableConfig(configurable={"thread_id": thread_id})
         try:
             state = await self.graph.aget_state(config)
@@ -251,7 +300,7 @@ class ChatBot:
                 messages.pop(idx)
             else:
                 raise f"Message index {message_id} out of range"
-            await memory.adelete_thread(thread_id)
+            await self.memory.adelete_thread(thread_id)
             await self.graph.aupdate_state(config, {"messages", messages})
             return True
         except Exception as e:
@@ -267,6 +316,9 @@ class ChatBot:
         :param message_id: 消息ID
         :return: 删除情况
         """
+        if self.graph is None:
+            await self.initialize()
+
         config = RunnableConfig(configurable={"thread_id": thread_id})
         try:
             state = await self.graph.aget_state(config)
@@ -283,7 +335,7 @@ class ChatBot:
                 ):
                     raise "Unsupported message type"
                 messages = messages[:idx]
-                await memory.adelete_thread(thread_id)
+                await self.memory.adelete_thread(thread_id)
                 await self.graph.aupdate_state(config, {"messages", messages})
                 return True
             else:
