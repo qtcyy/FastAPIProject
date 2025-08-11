@@ -36,3 +36,18 @@ class LLMService(ABC):
     async def edit_message(
         self, thread_id: str, message_idx: int, new_content: str
     ) -> dict[str, Any]: ...
+
+    @abstractmethod
+    async def edit_message_with_id(
+        self, thread_id: str, message_id: str, new_content: str
+    ) -> dict[str, Any]: ...
+
+    @abstractmethod
+    async def delete_message(
+        self, thread_id: str, message_idx: int
+    ) -> dict[str, Any]: ...
+
+    @abstractmethod
+    async def delete_message_with_id(
+        self, thread_id: str, message_id: str
+    ) -> dict[str, Any]: ...

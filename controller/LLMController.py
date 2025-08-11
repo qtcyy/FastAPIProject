@@ -20,7 +20,7 @@ class LLMController:
         self.router.post("/chat/tools")(self.chat_with_tools)
         self.router.get("/chat/history/{thread_id}")(self.get_history)
         self.router.delete("/chat/history/{thread_id}")(self.delete_thread)
-        self.router.post("/chat/history/edit/")(self.edit_message)
+        self.router.post("/chat/history/edit")(self.edit_message)
 
     async def get_house_info(self, request: HouseInfoRequest):
         return await self.llm_service.get_house_info_service(request.query)
@@ -51,7 +51,7 @@ class LLMController:
         """
         return await self.llm_service.delete_thread(thread_id=thread_id)
 
-    async def edit_message(self, request: EditMessageRequest):
+    async def edit_message(self, request: EditMessageRequest) -> dict[str, Any]:
         """
         编辑消息
         :param request: 请求体

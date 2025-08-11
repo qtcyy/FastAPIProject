@@ -165,11 +165,97 @@ class ChatBot:
                     messages[message_idx] = HumanMessage(content=new_content)
                 elif isinstance(messages[message_idx], AIMessage):
                     messages[message_idx] = AIMessage(content=new_content)
+                else:
+                    raise "Unsupported message type"
+                await memory.adelete_thread(thread_id)
+                await self.graph.aupdate_state(config, {"messages": messages})
                 return True
             else:
                 raise f"Message index {message_idx} out of range"
         except Exception as e:
             print(f"Error on edit message: {str(e)}")
+            return False
+
+    async def edit_message_with_id(
+        self, thread_id: str, message_id: str, new_content: str
+    ) -> bool:
+        """
+        根据消息ID修改消息内容
+        :param thread_id: 线程ID
+        :param message_id: 消息ID
+        :param new_content: 新消息内容
+        :return: 修改状态
+        """
+        config = RunnableConfig(configurable={"thread_id": thread_id})
+        try:
+            state = await self.graph.aget_state(config)
+            messages = state.values.get("messages", [])
+            idx = -1
+            for i, message in enumerate(messages):
+                if message.id == message_id:
+                    idx = i
+                    break
+            if idx != -1:
+                if isinstance(messages[idx], AIMessage):
+                    messages[idx] = AIMessage(new_content)
+                elif isinstance(messages[idx], HumanMessage):
+                    messages[idx] = HumanMessage(new_content)
+                else:
+                    raise "Unsupported message type"
+                return True
+            else:
+                raise f"Unable to find messages index {message_id}"
+        except Exception as e:
+            print(f"Error on edit message with id: {str(e)}")
+            return False
+
+    async def delete_message(self, thread_id: str, message_idx: int) -> bool:
+        """
+        删除指定消息
+        :param thread_id: 线程ID
+        :param message_idx: 消息位置
+        :return: 删除状态
+        """
+        config = RunnableConfig(configurable={"thread_id": thread_id})
+        try:
+            state = await self.graph.aget_state(config)
+            messages = state.values.get("messages", [])
+            if 0 <= message_idx < len(messages):
+                messages.pop(message_idx)
+                await memory.adelete_thread(thread_id)
+                await self.graph.aupdate_state(config, {"messages", messages})
+                return True
+            else:
+                raise f"Message index out of range"
+        except Exception as e:
+            print(f"Error on delete message: {str(e)}")
+            return False
+
+    async def delete_message_with_id(self, thread_id: str, message_id: str) -> bool:
+        """
+        根据消息ID删除消息
+        :param thread_id: 线程ID
+        :param message_id: 消息ID
+        :return: 删除状态
+        """
+        config = RunnableConfig(configurable={"thread_id": thread_id})
+        try:
+            state = await self.graph.aget_state(config)
+            messages = state.values.get("messages", [])
+            idx = -1
+            for i, message in enumerate(messages):
+                if message.id == message_id:
+                    idx = i
+                    break
+            if idx != -1:
+                messages.pop(idx)
+            else:
+                raise f"Message index {message_id} out of range"
+            await memory.adelete_thread(thread_id)
+            await self.graph.aupdate_state(config, {"messages", messages})
+            return True
+        except Exception as e:
+            print(f"Error on delete message with id: {str(e)}")
             return False
 
     async def generate_test(self, query: str):
