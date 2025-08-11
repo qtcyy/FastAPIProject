@@ -5,7 +5,7 @@ from langchain_core.messages import BaseMessage
 
 from service.impl.LLMServiceImpl import LLMService, LLMServiceImpl
 from vo.ChatAgentRequest import ChatAgentRequest
-from vo.EditMessageRequest import EditMessageRequest
+from vo.EditMessageRequest import EditMessageRequest, EditWithIDRequest
 from vo.HouseInfoRequest import HouseInfoRequest
 
 
@@ -59,4 +59,36 @@ class LLMController:
         """
         return await self.llm_service.edit_message(
             request.thread_id, request.message_idx, request.new_content
+        )
+
+    async def edit_message_with_id(self, request: EditWithIDRequest) -> dict[str, Any]:
+        """
+        根据消息ID编辑消息
+        :param request: 请求体
+        :return: 请求状态
+        """
+        return await self.llm_service.edit_message_with_id(
+            request.thread_id, request.message_idx, request.new_content
+        )
+
+    async def delete_message(self, request: EditMessageRequest) -> dict[str, Any]:
+        """
+        删除消息
+        :param request: 请求体
+        :return: 请求状态
+        """
+        return await self.llm_service.delete_message(
+            request.thread_id, request.message_idx
+        )
+
+    async def delete_message_with_id(
+        self, request: EditWithIDRequest
+    ) -> dict[str, Any]:
+        """
+        根据消息ID删除消息
+        :param request: 请求体
+        :return: 请求状态
+        """
+        return await self.llm_service.delete_message_with_id(
+            request.thread_id, request.message_idx
         )
