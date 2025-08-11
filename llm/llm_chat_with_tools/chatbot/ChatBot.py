@@ -258,6 +258,40 @@ class ChatBot:
             print(f"Error on delete message with id: {str(e)}")
             return False
 
+    async def delete_messages_after_with_id(
+        self, thread_id: str, message_id: str
+    ) -> bool:
+        """
+        删除指定消息后面的所有消息，包括该消息
+        :param thread_id: 线程ID
+        :param message_id: 消息ID
+        :return: 删除情况
+        """
+        config = RunnableConfig(configurable={"thread_id": thread_id})
+        try:
+            state = await self.graph.aget_state(config)
+            messages = state.values.get("messages", [])
+            idx = -1
+            for i, message in enumerate(messages):
+                if message.id == message_id:
+                    idx = i
+                    break
+            if idx != -1:
+                if not (
+                    isinstance(messages[idx], AIMessage)
+                    or isinstance(messages[idx], HumanMessage)
+                ):
+                    raise "Unsupported message type"
+                messages = messages[:idx]
+                await memory.adelete_thread(thread_id)
+                await self.graph.aupdate_state(config, {"messages", messages})
+                return True
+            else:
+                raise f"Message index {message_id} out of range"
+        except Exception as e:
+            print(f"Error on delete message with id: {str(e)}")
+            return False
+
     async def generate_test(self, query: str):
         """
         测试方法（测试用）

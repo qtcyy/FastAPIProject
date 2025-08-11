@@ -1,9 +1,11 @@
+from typing import Optional
+
 from pydantic import BaseModel, Field
 
 
 class BaseEditMessageRequest(BaseModel):
     thread_id: str = Field(description="线程ID")
-    new_content: str = Field(description="新消息")
+    new_content: Optional[str] = Field(description="新消息", default="")
 
 
 class EditMessageRequest(BaseEditMessageRequest):

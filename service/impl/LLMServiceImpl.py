@@ -163,3 +163,19 @@ class LLMServiceImpl(LLMService):
             return {"message": "success", "status": True}
         else:
             return {"message": "failed", "status": False}
+
+    @override
+    async def delete_messages_after_with_id(
+        self, thread_id: str, message_id: str
+    ) -> dict[str, Any]:
+        """
+        删除指定消息后面的所有消息，包括该消息
+        :param thread_id: 线程ID
+        :param message_id: 消息ID
+        :return: 删除状态
+        """
+        status = await self.chatbot.delete_messages_after_with_id(thread_id, message_id)
+        if status:
+            return {"message": "success", "status": True}
+        else:
+            return {"message": "failed", "status": False}

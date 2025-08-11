@@ -21,6 +21,12 @@ class LLMController:
         self.router.get("/chat/history/{thread_id}")(self.get_history)
         self.router.delete("/chat/history/{thread_id}")(self.delete_thread)
         self.router.post("/chat/history/edit")(self.edit_message)
+        self.router.post("/chat/history/edit/id")(self.edit_message_with_id)
+        self.router.post("/chat/history/delete")(self.delete_message)
+        self.router.post("/chat/history/delete/id")(self.delete_message_with_id)
+        self.router.post("/chat/history/delete/after")(
+            self.delete_messages_after_with_id
+        )
 
     async def get_house_info(self, request: HouseInfoRequest):
         return await self.llm_service.get_house_info_service(request.query)
@@ -91,4 +97,16 @@ class LLMController:
         """
         return await self.llm_service.delete_message_with_id(
             request.thread_id, request.message_idx
+        )
+
+    async def delete_messages_after_with_id(
+        self, request: EditWithIDRequest
+    ) -> dict[str, Any]:
+        """
+        删除指定消息后面的所有消息，包括该消息
+        :param request: 请求体
+        :return: 请求状态
+        """
+        return await self.llm_service.delete_messages_after_with_id(
+            request.thread_id, request.message_id
         )
