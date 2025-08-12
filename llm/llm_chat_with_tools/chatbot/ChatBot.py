@@ -269,7 +269,7 @@ class ChatBot:
             if 0 <= message_idx < len(messages):
                 messages.pop(message_idx)
                 await self.memory.adelete_thread(thread_id)
-                await self.graph.aupdate_state(config, {"messages", messages})
+                await self.graph.aupdate_state(config, {"messages": messages})
                 return True
             else:
                 raise f"Message index out of range"
@@ -301,7 +301,7 @@ class ChatBot:
             else:
                 raise f"Message index {message_id} out of range"
             await self.memory.adelete_thread(thread_id)
-            await self.graph.aupdate_state(config, {"messages", messages})
+            await self.graph.aupdate_state(config, {"messages": messages})
             return True
         except Exception as e:
             print(f"Error on delete message with id: {str(e)}")
@@ -336,7 +336,7 @@ class ChatBot:
                     raise "Unsupported message type"
                 messages = messages[:idx]
                 await self.memory.adelete_thread(thread_id)
-                await self.graph.aupdate_state(config, {"messages", messages})
+                await self.graph.aupdate_state(config, {"messages": messages})
                 return True
             else:
                 raise f"Message index {message_id} out of range"
