@@ -43,13 +43,6 @@ class ChatState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
 
 
-async def create_memory():
-    conn = await asyncpg.connect("postgresql://qtcyy:12345678@localhost:5432/chatbot")
-    return AsyncPostgresSaver(conn)
-
-
-memory = create_memory()
-
 SimplePrompt = (
     "你是一个有用的ai助手，请帮助我解决问题。请优先使用网络工具以获取最新且真实的数据。"
     "在调用网络搜索工具后如需获取详细信息，请调用网页访问工具获取网页详细信息。注意标出信息来源。"

@@ -4,11 +4,13 @@ from typing import List
 
 import requests
 from langchain.tools import tool
+from langchain_core.messages import HumanMessage
 from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
 from langchain_openai import ChatOpenAI
 from langgraph.config import get_stream_writer
+import os
 
 search_url = "https://api.search1api.com/search"
 crawl_url = "https://api.search1api.com/crawl"
@@ -53,7 +55,7 @@ async def search_tool(query: str) -> str:
 def web_crawler(links: List[str]) -> str:
     """
     批量网页访问工具，可以使用该工具访问具体网页的内容
-    :param links: 链接字符串序列
+    :param links: 链接字符串数组
     :return: 序列中网页的内容
     """
     crawl_request = [{"url": link} for link in links]
@@ -69,7 +71,31 @@ def web_crawler(links: List[str]) -> str:
     print(f"\n网页爬取内容:\n{response}")
 
     # print(f"网页访问内容：{response['results']['content']}")
-    return f"response: {response}"
+    # tool_prompt = ChatPromptTemplate.from_messages(
+    #     [
+    #         (
+    #             "system",
+    #             "你是一个帮助我提取信息的助手，我给你的内容是网页的内容，请提取出有效信息并返回。注意保留原先的json格式。",
+    #         ),
+    #         ("human", "{input}"),
+    #     ]
+    # )
+    # tool_llm = ChatOpenAI(
+    #     model="Qwen/Qwen2.5-7B-Instruct",
+    #     base_url="https://api.siliconflow.cn/v1",
+    #     api_key="sk-klxcwiidfejlwzupobhtdvwkzdvwtsxqekqucykewmyfryis",
+    # )
+    # chain = tool_prompt | tool_llm
+    # config = RunnableConfig(configurable={"thread_id": "tool_thread"})
+    #
+    # try:
+    #     tool_response = chain.invoke(input={"input": response}, config=config)
+    #     print(f"工具llm返回内容:\n{tool_response.content}")
+    #     return f"response: {tool_response.content}"
+    # except Exception as e:
+    #     print(f"Error on tool llm: {str(e)}")
+    #     return f"Error on tool llm: {str(e)}"
+    return response
 
 
 async def label_extra(query):
@@ -109,11 +135,11 @@ async def label_extra(query):
     return res
 
 
-# async def test():
-#     # links = ["https://www.langchain.com/langgraph", "https://fastapi.tiangolo.com/"]
-#     # web_crawler(links)
-#     await label_extra("杭州天气")
-#
-#
-# if __name__ == "__main__":
-#     asyncio.run(test())
+async def test():
+    links = ["https://www.langchain.com/langgraph", "https://fastapi.tiangolo.com/"]
+    web_crawler(links)
+    # await label_extra("杭州天气")
+
+
+if __name__ == "__main__":
+    asyncio.run(test())
