@@ -1,8 +1,118 @@
-# AI Agent 后端测试
+# AI Agent 后端项目
 
-## 拓展AI的应用
+## 项目简介
 
-目前已经实现：
+这是一个基于 FastAPI 的 AI 智能助手后端系统，集成了多种 AI 工具和功能，支持对话历史持久化和实时流式响应。
 
-- 带网页搜索功能的llm
-- 格式化输出为python对象的llm
+## 核心功能
+
+### 已实现功能
+
+- **智能对话系统**：基于 LangChain 和 LangGraph 的多轮对话
+- **工具集成**：
+  - 网页搜索功能（使用 search1api）
+  - 网页内容爬取和解析
+  - 数学计算工具
+  - 数据库查询工具（学生成绩查询）
+- **结构化输出**：将 LLM 输出解析为 Python 对象
+- **对话历史管理**：基于 PostgreSQL 的持久化存储
+- **消息编辑功能**：支持编辑、删除历史消息
+- **多模型支持**：支持 DeepSeek、OpenAI 兼容 API
+
+## 技术架构
+
+### 后端框架
+- **FastAPI**：高性能异步 Web 框架
+- **LangChain**：LLM 应用开发框架
+- **LangGraph**：状态图管理和工具编排
+- **PostgreSQL**：对话历史持久化存储
+
+### AI 集成
+- **DeepSeek API**：主要 LLM 服务提供商
+- **多工具系统**：搜索、计算、数据查询等工具
+- **流式响应**：基于 Server-Sent Events 的实时对话
+
+## 快速开始
+
+### 环境要求
+- Python 3.8+
+- PostgreSQL 数据库
+- API 密钥（DeepSeek/OpenAI 兼容服务）
+
+### 安装依赖
+```bash
+pip install fastapi uvicorn langchain langchain-anthropic langchain-deepseek langchain-openai langgraph psycopg asyncpg fastmcp
+```
+
+### 数据库配置
+确保 PostgreSQL 服务运行，并创建数据库：
+```sql
+CREATE DATABASE chatbot;
+```
+
+### 启动服务
+```bash
+# 开发模式
+uvicorn main:app --reload
+
+# 生产模式
+uvicorn main:app --host 0.0.0.0 --port 8000
+```
+
+## API 接口
+
+### 对话接口
+- `POST /chat/tools` - 带工具的智能对话
+- `GET /chat/history/{thread_id}` - 获取对话历史
+- `DELETE /chat/history/{thread_id}` - 删除对话线程
+
+### 消息管理
+- `POST /chat/history/edit` - 编辑消息（按索引）
+- `POST /chat/history/edit/id` - 编辑消息（按ID）
+- `POST /chat/history/delete` - 删除消息
+- `POST /chat/history/delete/after` - 删除指定消息之后的所有消息
+
+### 特殊功能
+- `POST /house/` - 房屋信息结构化提取
+
+## 项目结构
+
+```
+FastAPIProject/
+├── main.py              # FastAPI 应用入口
+├── controller/          # 控制器层
+│   ├── LLMController.py # LLM 相关接口
+│   └── SecurityController.py
+├── service/             # 服务层
+│   ├── LLMService.py
+│   └── impl/LLMServiceImpl.py
+├── llm/                 # AI 功能模块
+│   ├── llm_chat_with_tools/  # 带工具的对话系统
+│   ├── llm_praser/      # 输出解析
+│   └── llm_chat/        # 基础对话
+├── dao/                 # 数据访问层
+├── vo/                  # 数据传输对象
+└── test_main.http       # API 测试文件
+```
+
+## 开发说明
+
+### 配置环境变量
+在 ChatBot 类中配置相关 API 密钥和数据库连接信息。
+
+### 测试
+- 使用 `test_main.http` 文件测试 API 接口
+- 访问 `http://localhost:8000/docs` 查看 API 文档
+- 运行 `dao/test/` 中的测试文件
+
+### 扩展功能
+- 在 `tools/` 目录下添加新的工具函数
+- 在 `controller/` 中添加新的 API 端点
+- 在 `vo/` 中定义新的请求/响应模型
+
+## 注意事项
+
+- 确保 PostgreSQL 数据库正常运行
+- 配置正确的 API 密钥和服务端点
+- 生产环境需要适当的安全配置
+- 注意 API 调用频率限制
