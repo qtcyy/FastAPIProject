@@ -26,7 +26,11 @@ from langgraph.graph import add_messages, StateGraph, START
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from llm.llm_chat_with_tools.tools.calculate_tools import calculate_tools
-from llm.llm_chat_with_tools.tools.search_tools import search_tool, web_crawler
+from llm.llm_chat_with_tools.tools.search_tools import (
+    search_tool,
+    web_crawler,
+    query_student_avg_grade,
+)
 
 import asyncpg
 
@@ -60,7 +64,12 @@ class ChatBot:
             verbose=True,
             temperature=0.8,
         )
-        self.tools = [search_tool, calculate_tools, web_crawler]
+        self.tools = [
+            search_tool,
+            calculate_tools,
+            web_crawler,
+            query_student_avg_grade,
+        ]
         self.llm_with_tools = self.llm.bind_tools(tools=self.tools)
         self.tool_node = ToolNode(tools=self.tools)
 

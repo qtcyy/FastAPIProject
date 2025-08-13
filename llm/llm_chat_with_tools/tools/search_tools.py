@@ -11,10 +11,13 @@ from langchain_core.runnables import RunnableConfig
 from langchain_openai import ChatOpenAI
 from langgraph.config import get_stream_writer
 import os
+from fastmcp import Client
 
 search_url = "https://api.search1api.com/search"
 crawl_url = "https://api.search1api.com/crawl"
 search_api_key = "F016AD79-D8F4-4A2E-B53F-8578A4D43DDB"
+
+client = Client("http://localhost:8080/mcp")
 
 
 @tool
@@ -96,6 +99,53 @@ def web_crawler(links: List[str]) -> str:
     #     print(f"Error on tool llm: {str(e)}")
     #     return f"Error on tool llm: {str(e)}"
     return response
+
+
+@tool
+async def query_student_avg_grade(class_name: str) -> str:
+    """
+    查询指定班级的平均成绩统计信息。
+
+    此工具用于获取特定班级所有学生在语文、数学、英语三门科目的平均分数，
+    以及该班级的学生总数。适用于教师查看班级整体学习情况、进行成绩分析等场景。
+
+    Args:
+        class_name (str): 要查询的班级名称，例如 "class_1"、"三年级一班" 等。
+                         班级名称需要与数据库中存储的完全匹配。
+
+    Returns:
+        str: 返回包含班级平均成绩信息的JSON字符串，包含以下字段：
+            - class_name: 班级名称
+            - chinese_avg: 语文平均分（保留2位小数）
+            - math_avg: 数学平均分（保留2位小数）
+            - english_avg: 英语平均分（保留2位小数）
+
+    Example:
+        输入: "class_1"
+        输出: {
+            "class_name": "class_1",
+            "chinese_avg": 85.67,
+            "math_avg": 78.92,
+            "english_avg": 82.45,
+        }
+
+    Usage Scenarios:
+        - 教师查看班级整体学习水平
+        - 对比不同班级的成绩表现
+        - 生成班级成绩报告
+        - 分析各科目强弱项
+
+    Note:
+        - 如果班级不存在或没有成绩数据，将返回相应的错误信息
+        - 平均分计算基于该班级所有有效的考试成绩记录
+        - 确保输入的班级名称准确无误
+    """
+    async with client:
+        result = await client.call_tool(
+            "get_class_average_grade", {"class_name": class_name}
+        )
+        json_str = result.content[0].text
+        return json_str
 
 
 async def label_extra(query):
