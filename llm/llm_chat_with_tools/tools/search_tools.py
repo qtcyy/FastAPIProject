@@ -12,6 +12,7 @@ from langchain_openai import ChatOpenAI
 from langgraph.config import get_stream_writer
 import os
 from fastmcp import Client
+from .result_processor import process_mcp_result
 
 search_url = "https://api.search1api.com/search"
 crawl_url = "https://api.search1api.com/crawl"
@@ -291,7 +292,9 @@ def extract_key_paragraphs(content: str) -> str:
 
 
 @tool
-async def query_student_avg_grade(class_name: str) -> str:
+async def query_student_avg_grade(
+    class_name: str, process_result: bool = True, processing_mode: str = "formatted"
+) -> str:
     """
     查询指定班级的平均成绩统计信息。
 
@@ -301,6 +304,8 @@ async def query_student_avg_grade(class_name: str) -> str:
     Args:
         class_name (str): 要查询的班级名称，例如 "class_1"、"三年级一班" 等。
                          班级名称需要与数据库中存储的完全匹配。
+        process_result (bool): 是否对结果进行处理，默认True
+        processing_mode (str): 处理模式 (raw/summary/formatted/filtered/structured)，默认formatted
 
     Returns:
         str: 返回包含班级平均成绩信息的JSON字符串，包含以下字段：
@@ -334,6 +339,20 @@ async def query_student_avg_grade(class_name: str) -> str:
             "get_class_average_grade", {"class_name": class_name}
         )
         json_str = result.content[0].text
+
+        # 如果启用结果处理，对原始结果进行处理
+        if process_result:
+            try:
+                processed_result = await process_mcp_result(
+                    tool_name="query_student_avg_grade",
+                    result=json_str,
+                    mode=processing_mode,
+                )
+                return processed_result
+            except Exception as e:
+                print(f"结果处理失败: {e}")
+                return json_str
+
         return json_str
 
 

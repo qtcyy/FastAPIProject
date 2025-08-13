@@ -32,6 +32,10 @@ from llm.llm_chat_with_tools.tools.search_tools import (
     web_crawler,
     query_student_avg_grade,
 )
+from llm.llm_chat_with_tools.tools.result_processor import (
+    result_processor,
+    ProcessingMode,
+)
 
 import asyncpg
 
@@ -91,10 +95,15 @@ async def get_tools():
 
 
 class ChatBot:
-    def __init__(self, model: str = "Qwen/Qwen2.5-7B-Instruct"):
+    def __init__(
+        self,
+        model: str = "Qwen/Qwen2.5-7B-Instruct",
+        enable_result_processing: bool = False,
+    ):
         """
         ChatBot初始化
         :param model: 模型名称
+        :param enable_result_processing: 是否启用结果处理
         """
         self.llm = ChatDeepSeek(
             model=model,
@@ -108,6 +117,8 @@ class ChatBot:
         ]
         self.llm_with_tools = None
         self.tool_node = None
+        self.enable_result_processing = enable_result_processing
+        self.result_processor = result_processor
 
         self.prompt = ChatPromptTemplate.from_messages(
             [("system", SimplePrompt), ("placeholder", "{messages}")]
@@ -148,6 +159,39 @@ class ChatBot:
         response = await self.chain.ainvoke({"messages": messages})
         return {"messages": response}
 
+    async def process_tool_results(self, state: ChatState):
+        """
+        处理工具执行结果的节点
+        """
+        messages = state["messages"]
+        processed_messages = []
+
+        for message in messages:
+            if isinstance(message, ToolMessage) and self.enable_result_processing:
+                # 获取工具名称
+                tool_name = getattr(message, "name", "unknown_tool")
+                original_content = message.content
+
+                try:
+                    # 如果是MCP工具结果，进行处理
+                    if any(
+                        tool_name.startswith(prefix)
+                        for prefix in ["get_", "query_", "fetch_"]
+                    ):
+                        processed_content = await self.result_processor.process_result(
+                            tool_name=tool_name,
+                            result=original_content,
+                            mode=ProcessingMode.FORMATTED,
+                        )
+                        message.content = processed_content
+                except Exception as e:
+                    print(f"处理工具结果时出错: {e}")
+                    # 保持原始内容
+
+            processed_messages.append(message)
+
+        return {"messages": processed_messages}
+
     async def create_graph(self):
         if self.memory is None:
             raise ValueError("Memory not initialized. Call initialize() first.")
@@ -156,9 +200,21 @@ class ChatBot:
         graph_builder.add_node("chatbot", self.chatbot, metadata={"name": "chatbot"})
         graph_builder.add_node("tools", self.tool_node, metadata={"name": "search"})
 
+        if self.enable_result_processing:
+            graph_builder.add_node(
+                "process_results",
+                self.process_tool_results,
+                metadata={"name": "process_results"},
+            )
+
         graph_builder.add_edge(START, "chatbot")
         graph_builder.add_conditional_edges("chatbot", tools_condition)
-        graph_builder.add_edge("tools", "chatbot")
+
+        if self.enable_result_processing:
+            graph_builder.add_edge("tools", "process_results")
+            graph_builder.add_edge("process_results", "chatbot")
+        else:
+            graph_builder.add_edge("tools", "chatbot")
 
         return graph_builder.compile(checkpointer=self.memory)
 
