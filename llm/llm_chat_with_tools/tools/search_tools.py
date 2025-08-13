@@ -57,9 +57,9 @@ async def search_tool(query: str) -> str:
 @tool
 def web_crawler(links: List[str]) -> str:
     """
-    批量网页访问工具，可以使用该工具访问具体网页的内容
+    批量网页访问工具，获取网页详细内容并进行结构化处理
     :param links: 链接字符串数组
-    :return: 序列中网页的内容
+    :return: 格式化后的网页内容，包含标题、URL、主要内容和关键信息
     """
     crawl_request = [{"url": link} for link in links]
     response = requests.post(
@@ -71,34 +71,119 @@ def web_crawler(links: List[str]) -> str:
     )
     response.raise_for_status()
     response = response.json()
-    print(f"\n网页爬取内容:\n{response}")
+    print(f"\n网页爬取原始内容:\n{response}")
 
-    # print(f"网页访问内容：{response['results']['content']}")
-    # tool_prompt = ChatPromptTemplate.from_messages(
-    #     [
-    #         (
-    #             "system",
-    #             "你是一个帮助我提取信息的助手，我给你的内容是网页的内容，请提取出有效信息并返回。注意保留原先的json格式。",
-    #         ),
-    #         ("human", "{input}"),
-    #     ]
-    # )
-    # tool_llm = ChatOpenAI(
-    #     model="Qwen/Qwen2.5-7B-Instruct",
-    #     base_url="https://api.siliconflow.cn/v1",
-    #     api_key="sk-klxcwiidfejlwzupobhtdvwkzdvwtsxqekqucykewmyfryis",
-    # )
-    # chain = tool_prompt | tool_llm
-    # config = RunnableConfig(configurable={"thread_id": "tool_thread"})
-    #
-    # try:
-    #     tool_response = chain.invoke(input={"input": response}, config=config)
-    #     print(f"工具llm返回内容:\n{tool_response.content}")
-    #     return f"response: {tool_response.content}"
-    # except Exception as e:
-    #     print(f"Error on tool llm: {str(e)}")
-    #     return f"Error on tool llm: {str(e)}"
-    return response
+    # 处理和格式化网页内容
+    formatted_content = format_crawled_content(response)
+    print(f"\n格式化后的网页内容:\n{formatted_content}")
+
+    return formatted_content
+
+
+def format_crawled_content(raw_response) -> str:
+    """
+    格式化爬取的网页内容，提取关键信息并结构化展示
+    :param raw_response: 原始API响应
+    :return: 结构化的网页内容字符串
+    """
+    if not raw_response or "results" not in raw_response:
+        return "❌ 无法获取网页内容"
+
+    results = raw_response.get("results", [])
+    if not results:
+        return "❌ 网页内容为空"
+
+    formatted_pages = []
+
+    for i, page_data in enumerate(results, 1):
+        url = page_data.get("url", "未知URL")
+        title = page_data.get("title", "无标题").strip()
+        content = page_data.get("content", "").strip()
+
+        # 处理标题
+        if not title or title == "无标题":
+            title = extract_title_from_url(url)
+
+        # 处理内容
+        if content:
+            # 清理和截取内容
+            cleaned_content = clean_content(content)
+            # 提取关键段落
+            key_paragraphs = extract_key_paragraphs(cleaned_content)
+            content_summary = key_paragraphs[:2000]  # 限制长度
+        else:
+            content_summary = "无可用内容"
+
+        # 格式化单个页面内容
+        page_formatted = f"""
+📄 **网页 {i}**: {title}
+🔗 **链接**: {url}
+📝 **内容摘要**:
+{content_summary}
+{'...' if len(content) > 2000 else ''}
+
+---
+"""
+        formatted_pages.append(page_formatted)
+
+    # 组合所有页面内容
+    final_content = f"""
+🌐 **网页爬取结果** (共 {len(results)} 个页面)
+
+{''.join(formatted_pages)}
+
+💡 **提示**: 以上内容来自指定网页的实时爬取，信息来源已标注。
+"""
+
+    return final_content.strip()
+
+
+def extract_title_from_url(url: str) -> str:
+    """从URL中提取可能的标题"""
+    try:
+        from urllib.parse import urlparse
+
+        parsed = urlparse(url)
+        domain = parsed.netloc.replace("www.", "")
+        path_parts = [p for p in parsed.path.split("/") if p]
+        if path_parts:
+            return f"{domain} - {path_parts[-1]}"
+        return domain
+    except:
+        return "未知页面"
+
+
+def clean_content(content: str) -> str:
+    """清理网页内容，移除多余的空白和无用字符"""
+    import re
+
+    # 移除多余的空白字符
+    content = re.sub(r"\s+", " ", content)
+    # 移除特殊控制字符
+    content = re.sub(r"[\x00-\x1f\x7f-\x9f]", "", content)
+    # 移除多余的换行
+    content = re.sub(r"\n\s*\n", "\n\n", content)
+
+    return content.strip()
+
+
+def extract_key_paragraphs(content: str) -> str:
+    """提取关键段落，优先显示较长的段落"""
+    paragraphs = [p.strip() for p in content.split("\n") if p.strip()]
+
+    # 过滤掉太短的段落（可能是导航、广告等）
+    meaningful_paragraphs = [p for p in paragraphs if len(p) > 50]
+
+    if not meaningful_paragraphs:
+        meaningful_paragraphs = paragraphs[:5]  # 如果没有长段落，取前5个
+
+    # 按长度排序，优先展示信息量大的段落
+    meaningful_paragraphs.sort(key=len, reverse=True)
+
+    # 取前几个最有意义的段落
+    selected_paragraphs = meaningful_paragraphs[:3]
+
+    return "\n\n".join(selected_paragraphs)
 
 
 @tool
