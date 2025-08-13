@@ -374,11 +374,11 @@ async def label_extra(query):
     return res
 
 
-async def test():
-    links = ["https://www.langchain.com/langgraph", "https://fastapi.tiangolo.com/"]
-    web_crawler(links)
-    # await label_extra("杭州天气")
-
-
-if __name__ == "__main__":
-    asyncio.run(test())
+# async def test():
+#     links = ["https://www.langchain.com/langgraph", "https://fastapi.tiangolo.com/"]
+#     web_crawler(links)
+#     # await label_extra("杭州天气")
+#
+#
+# if __name__ == "__main__":
+#     asyncio.run(test())

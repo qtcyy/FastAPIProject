@@ -19,6 +19,7 @@ from langchain_deepseek import ChatDeepSeek
 import os
 
 from langchain_openai import ChatOpenAI
+from langchain_mcp_adapters.client import MultiServerMCPClient
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.config import get_stream_writer, get_store
 from langgraph.prebuilt import ToolNode, tools_condition
@@ -34,6 +35,7 @@ from llm.llm_chat_with_tools.tools.search_tools import (
 
 import asyncpg
 
+
 os.environ["OPENAI_API_KEY"] = "sk-klxcwiidfejlwzupobhtdvwkzdvwtsxqekqucykewmyfryis"
 os.environ["OPENAI_API_BASE"] = "https://api.siliconflow.cn/v1/chat/completions"
 os.environ["DEEPSEEK_API_KEY"] = "sk-klxcwiidfejlwzupobhtdvwkzdvwtsxqekqucykewmyfryis"
@@ -47,10 +49,45 @@ class ChatState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
 
 
-SimplePrompt = (
-    "你是一个有用的ai助手，请帮助我解决问题。请优先使用网络工具以获取最新且真实的数据。"
-    "在调用网络搜索工具后如需获取详细信息，请调用网页访问工具获取网页详细信息。注意标出信息来源。"
+SimplePrompt = """你是一个专业的AI智能助手，拥有多种工具能力，致力于为用户提供准确、及时、有用的信息和解决方案。
+
+核心能力与工具：
+🔍 智能搜索：实时获取最新网络信息，包括新闻、资讯、技术文档等
+🌐 网页爬取：深度解析网页内容，提取关键信息和详细数据  
+🧮 数学计算：处理各种数学运算、统计分析和计算问题
+📊 数据查询：查询数据库信息，如学生成绩统计等
+
+工作原则：
+1. 信息准确性：优先使用搜索工具获取最新、真实的数据，避免过时信息
+2. 来源标注：明确标出信息来源，提供可验证的参考链接
+3. 深度分析：搜索后根据需要使用网页爬取工具获取详细内容
+4. 结构化回答：以清晰、有条理的方式组织和呈现信息
+5. 主动思考：理解用户真实意图，提供超出预期的有价值建议
+
+响应策略：
+- 对于时效性强的问题（天气、新闻、股价等），必须使用搜索工具
+- 对于需要详细信息的查询，先搜索概况，再爬取具体内容
+- 对于计算类问题，使用计算工具确保准确性
+- 对于数据查询需求，使用相应的查询工具
+- 始终以用户需求为导向，灵活运用各种工具组合
+
+请根据用户问题的性质，智能选择最合适的工具组合来提供最佳解决方案。"""
+
+client = MultiServerMCPClient(
+    {
+        "Student_Grade_System": {
+            "url": "http://localhost:8080/mcp",
+            "transport": "streamable_http",
+        }
+    }
 )
+
+mcp_tools = []
+
+
+async def get_tools():
+    global mcp_tools
+    mcp_tools = await client.get_tools()
 
 
 class ChatBot:
@@ -68,16 +105,15 @@ class ChatBot:
             search_tool,
             calculate_tools,
             web_crawler,
-            query_student_avg_grade,
         ]
-        self.llm_with_tools = self.llm.bind_tools(tools=self.tools)
-        self.tool_node = ToolNode(tools=self.tools)
+        self.llm_with_tools = None
+        self.tool_node = None
 
         self.prompt = ChatPromptTemplate.from_messages(
             [("system", SimplePrompt), ("placeholder", "{messages}")]
         )
 
-        self.chain = self.prompt | self.llm_with_tools
+        self.chain = None
 
         # self.graph = self.create_graph()
         self.memory = None
@@ -91,6 +127,14 @@ class ChatBot:
         self.memory = AsyncPostgresSaver(conn)
 
         await self.memory.setup()
+        if not self.chain:
+            await get_tools()
+            self.tools.extend(mcp_tools)
+            print(self.tools)
+            self.llm_with_tools = self.llm.bind_tools(tools=self.tools)
+            self.tool_node = ToolNode(tools=self.tools)
+
+            self.chain = self.prompt | self.llm_with_tools
         self.graph = await self.create_graph()
 
     async def chatbot(self, state: ChatState):
