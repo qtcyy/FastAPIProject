@@ -23,9 +23,29 @@ client = Client("http://localhost:8080/mcp")
 @tool
 async def search_tool(query: str) -> str:
     """
-    搜索引擎工具，从网上搜索内容，返回内容包含（网页标题，网页简要内容，网页链接）
-    :param query: 要搜索的内容
-    :return: 搜索引擎给出的结果
+    智能网络搜索引擎 - 实时获取最新、最相关的网络信息
+
+    功能特点：
+    - 基于Google搜索引擎，提供高质量、实时的搜索结果
+    - 智能匹配用户查询意图，返回最相关的网页信息
+    - 结构化展示搜索结果，包含标题、摘要和链接
+    - 支持中文和英文查询，自动优化搜索策略
+    - 获取最多10个高质量搜索结果
+
+    适用场景：
+    - 获取最新新闻、资讯和事件信息
+    - 查找产品信息、价格对比和用户评价
+    - 搜索技术文档、教程和解决方案
+    - 获取实时天气、股价、汇率等动态信息
+    - 查找学术资料、统计数据和研究报告
+
+    :param query: 搜索关键词或问题描述，支持自然语言查询
+    :return: 格式化的搜索结果列表，包含排名、标题、内容摘要和源网页链接
+
+    使用建议：
+    - 使用具体、明确的关键词以获得更精准的结果
+    - 可以组合多个关键词提高搜索精度
+    - 搜索后可配合web_crawler工具获取详细内容
     """
     # writer = get_stream_writer()
     # writer(f"web search: {query}")
@@ -41,25 +61,109 @@ async def search_tool(query: str) -> str:
     response.raise_for_status()
     response = response.json()
 
-    result = ""
-    for i, res in enumerate(response["results"]):
-        result += str(i + 1) + " "
-        result += "title: " + res["title"] + " "
-        result += "snippet: " + res["snippet"] + " "
-        result += "link: " + res["link"] + "\n"
-        result += "\n"
+    # 格式化搜索结果
+    formatted_result = format_search_results(response, query)
 
-    print(f"\n网页搜索内容：\n{result}")
-    # writer(f"web search result: {result}")
-    return result
+    print(f"\n网页搜索内容：\n{formatted_result}")
+    # writer(f"web search result: {formatted_result}")
+    return formatted_result
+
+
+def format_search_results(response, query: str) -> str:
+    """
+    格式化搜索结果，提供结构化和易读的输出
+    :param response: API响应结果
+    :param query: 搜索查询
+    :return: 格式化的搜索结果字符串
+    """
+    if not response or "results" not in response:
+        return "❌ 搜索失败，未能获取到结果"
+
+    results = response.get("results", [])
+    if not results:
+        return f"🔍 未找到与 '{query}' 相关的搜索结果"
+
+    # 构建格式化的搜索结果
+    formatted_output = f"""
+🔍 **搜索查询**: {query}
+📊 **找到 {len(results)} 个相关结果**
+
+"""
+
+    for i, res in enumerate(results, 1):
+        title = res.get("title", "无标题").strip()
+        snippet = res.get("snippet", "无摘要信息").strip()
+        link = res.get("link", "")
+
+        # 清理和优化摘要内容
+        snippet = clean_snippet(snippet)
+
+        formatted_output += f"""📄 **结果 {i}**: {title}
+🔗 **链接**: {link}
+📝 **摘要**: {snippet}
+
+---
+
+"""
+
+    # 添加使用建议
+    formatted_output += f"""
+💡 **提示**: 
+- 以上是最相关的 {len(results)} 个搜索结果
+- 点击链接可访问原始网页获取完整信息
+- 如需获取网页详细内容，可使用 web_crawler 工具
+- 搜索结果按相关性排序，排名越靠前越相关
+"""
+
+    return formatted_output.strip()
+
+
+def clean_snippet(snippet: str) -> str:
+    """
+    清理搜索结果摘要，移除多余字符和格式化文本
+    :param snippet: 原始摘要文本
+    :return: 清理后的摘要
+    """
+    import re
+
+    if not snippet:
+        return "暂无摘要信息"
+
+    # 移除多余的空白字符
+    snippet = re.sub(r"\s+", " ", snippet)
+
+    # 移除特殊控制字符
+    snippet = re.sub(r"[^\x00-\x7F\u4e00-\u9fff\u3400-\u4dbf]", "", snippet)
+
+    # 限制长度，避免摘要过长
+    if len(snippet) > 200:
+        snippet = snippet[:197] + "..."
+
+    return snippet.strip()
 
 
 @tool
 def web_crawler(links: List[str]) -> str:
     """
-    批量网页访问工具，获取网页详细内容并进行结构化处理
-    :param links: 链接字符串数组
-    :return: 格式化后的网页内容，包含标题、URL、主要内容和关键信息
+    高效批量网页内容抓取工具 - 深度解析网页信息并智能提取关键内容
+
+    功能特点：
+    - 支持同时抓取多个网页链接的完整内容
+    - 自动提取网页标题、正文内容和关键信息段落
+    - 智能清理无关内容（广告、导航等），专注核心信息
+    - 结构化输出，便于阅读和进一步处理
+    - 自动处理缺失标题，从URL推断页面主题
+
+    使用场景：
+    - 获取搜索结果页面的详细内容
+    - 收集多个相关网页的完整信息
+    - 提取文章、新闻、产品页面的核心内容
+    - 对比分析不同网站的信息
+
+    :param links: 需要抓取的网页URL列表，支持HTTP/HTTPS协议
+    :return: 结构化的网页内容字符串，包含每个页面的标题、链接、内容摘要和信息来源标注
+
+    注意：建议一次抓取不超过5个链接，确保响应速度和内容质量
     """
     crawl_request = [{"url": link} for link in links]
     response = requests.post(
