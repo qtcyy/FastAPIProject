@@ -1,10 +1,7 @@
-import asyncio
 import json
-import time
 from typing import TypedDict, Annotated, Sequence, List
 
 import psycopg
-from langchain_anthropic import ChatAnthropic
 from langchain_core.messages import (
     BaseMessage,
     HumanMessage,
@@ -12,16 +9,12 @@ from langchain_core.messages import (
     AIMessageChunk,
     ToolMessage,
 )
-from langchain_core.output_parsers import StrOutputParser
 from langchain_core.prompts import ChatPromptTemplate
 from langchain_core.runnables import RunnableConfig
 from langchain_deepseek import ChatDeepSeek
 import os
 
-from langchain_openai import ChatOpenAI
 from langchain_mcp_adapters.client import MultiServerMCPClient
-from langgraph.checkpoint.memory import MemorySaver
-from langgraph.config import get_stream_writer, get_store
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.graph import add_messages, StateGraph, START
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
@@ -30,14 +23,12 @@ from llm.llm_chat_with_tools.tools.calculate_tools import calculate_tools, advan
 from llm.llm_chat_with_tools.tools.search_tools import (
     search_tool,
     web_crawler,
-    query_student_avg_grade,
 )
 from llm.llm_chat_with_tools.tools.result_processor import (
     result_processor,
     ProcessingMode,
 )
 
-import asyncpg
 
 
 os.environ["OPENAI_API_KEY"] = "sk-klxcwiidfejlwzupobhtdvwkzdvwtsxqekqucykewmyfryis"
