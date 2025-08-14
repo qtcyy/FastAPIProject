@@ -39,7 +39,8 @@ This is a FastAPI-based AI agent backend that provides LLM chat capabilities wit
 The ChatBot integrates several tools via LangGraph:
 - `search_tool`: Web search via search1api.com
 - `web_crawler`: Batch web page content extraction
-- `calculate_tools`: Mathematical calculations
+- `calculate_tools`: Enhanced mathematical calculations with safe evaluation
+- `advanced_math`: Statistical analysis and advanced mathematical operations
 - `query_student_avg_grade`: Database queries via MCP client
 
 ## Development Commands

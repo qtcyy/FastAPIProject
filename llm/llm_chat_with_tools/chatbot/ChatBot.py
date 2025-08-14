@@ -26,7 +26,7 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.graph import add_messages, StateGraph, START
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
-from llm.llm_chat_with_tools.tools.calculate_tools import calculate_tools
+from llm.llm_chat_with_tools.tools.calculate_tools import calculate_tools, advanced_math
 from llm.llm_chat_with_tools.tools.search_tools import (
     search_tool,
     web_crawler,
@@ -113,6 +113,7 @@ class ChatBot:
         self.tools = [
             search_tool,
             calculate_tools,
+            advanced_math,
             web_crawler,
         ]
         self.llm_with_tools = None
@@ -243,7 +244,7 @@ class ChatBot:
                 full_messages += event.content
                 print(event.content, end="")
             yield f"data: {json.dumps(dict(chunk[0]), ensure_ascii=False)}\n\n"
-        print(f"\nfull_messages:\n {full_messages}")
+        # print(f"\nfull_messages:\n {full_messages}")
         yield "data: [DONE]\n"
 
     async def get_history(self, thread_id: str) -> List[BaseMessage]:
