@@ -62,11 +62,11 @@ class LLMServiceImpl(LLMService):
 
     @override
     async def chat_with_tools(
-        self, query: str, thread_id: str, model: str = "Qwen/Qwen2.5-7B-Instruct"
+        self, query: str, thread_id: str, model: str = "Qwen/Qwen2.5-7B-Instruct", summary_with_llm: bool = False
     ) -> Any:
         custom_chatbot = ChatBot(model=model)
         return StreamingResponse(
-            custom_chatbot.generate(query=query, thread_id=thread_id),
+            custom_chatbot.generate(query=query, thread_id=thread_id, summary_with_llm=summary_with_llm),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",

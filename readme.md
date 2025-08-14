@@ -13,6 +13,7 @@
   - 🔍 **智能网页搜索**：
     - 集成 search1api 实时搜索功能
     - **NEW**: LLM 智能总结功能，自动提炼搜索结果核心信息
+    - **🎛️ 可控总结功能**：通过 `summary_with_llm` 参数动态控制
     - 双层输出：智能总结 + 详细搜索结果（含完整链接）
     - 结构化 markdown 格式，重点信息自动加粗
     - 去重去冗余，按重要性排序组织信息
@@ -83,6 +84,18 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 
 ### 对话接口
 - `POST /chat/tools` - 带工具的智能对话
+  - **请求参数**：
+    ```json
+    {
+      "thread_id": "string",      // 线程ID
+      "query": "string",          // 用户问题
+      "model": "string",          // 可选：模型名称，默认 "Qwen/Qwen2.5-7B-Instruct"
+      "summary_with_llm": false   // 可选：是否启用LLM智能总结，默认 false
+    }
+    ```
+  - **总结功能控制**：
+    - `summary_with_llm: true` → 搜索结果经过LLM智能总结
+    - `summary_with_llm: false` → 返回原始格式化搜索结果
 - `GET /chat/history/{thread_id}` - 获取对话历史
 - `DELETE /chat/history/{thread_id}` - 删除对话线程
 

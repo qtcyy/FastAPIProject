@@ -107,8 +107,8 @@ class ChatBot:
         """
         self.llm = ChatDeepSeek(
             model=model,
-            verbose=True,
-            temperature=0.8,
+            verbose=False,
+            temperature=0.6,
         )
         self.tools = [
             search_tool,
@@ -219,17 +219,23 @@ class ChatBot:
 
         return graph_builder.compile(checkpointer=self.memory)
 
-    async def generate(self, query: str, thread_id: str):
+    async def generate(self, query: str, thread_id: str, summary_with_llm: bool = False):
         """
         对话内容生成
         :param query: 问题内容
         :param thread_id: 线程id
+        :param summary_with_llm: 是否启用LLM智能总结功能
         :return: stream返回llm内容
         """
         if self.graph is None:
             await self.initialize()
 
-        config: RunnableConfig = RunnableConfig(configurable={"thread_id": thread_id})
+        config: RunnableConfig = RunnableConfig(
+            configurable={
+                "thread_id": thread_id,
+                "summary_with_llm": summary_with_llm
+            }
+        )
         full_messages = ""
 
         print("Start Chat:")

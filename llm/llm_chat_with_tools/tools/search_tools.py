@@ -22,7 +22,7 @@ client = Client("http://localhost:8080/mcp")
 
 
 @tool
-async def search_tool(query: str) -> str:
+async def search_tool(query: str, config: RunnableConfig = None) -> str:
     """
     智能网络搜索引擎 - 实时获取最新、最相关的网络信息
 
@@ -68,10 +68,22 @@ async def search_tool(query: str) -> str:
     print(f"\n网页搜索内容：\n{formatted_result}")
     # writer(f"web search result: {formatted_result}")
 
-    # llm再提炼
-    answer = await summary_with_llm(formatted_result)
-
-    return answer
+    # 检查是否启用LLM总结功能
+    summary_enabled = False
+    if config and config.get("configurable"):
+        summary_enabled = config["configurable"].get("summary_with_llm", False)
+    
+    print(f"🤖 LLM智能总结功能状态: {'启用' if summary_enabled else '关闭'}")
+    
+    if summary_enabled:
+        # llm再提炼
+        print("🔄 正在使用LLM进行智能总结...")
+        answer = await summary_with_llm(formatted_result)
+        return answer
+    else:
+        # 直接返回格式化结果
+        print("📄 返回原始格式化搜索结果")
+        return formatted_result
 
 
 async def summary_with_llm(response: str) -> str:
