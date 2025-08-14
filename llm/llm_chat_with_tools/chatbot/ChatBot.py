@@ -98,7 +98,7 @@ class ChatBot:
     def __init__(
         self,
         model: str = "Qwen/Qwen2.5-7B-Instruct",
-        enable_result_processing: bool = False,
+        enable_result_processing: bool = True,
     ):
         """
         ChatBot初始化

@@ -188,20 +188,36 @@ def web_crawler(links: List[str]) -> str:
 def format_crawled_content(raw_response) -> str:
     """
     格式化爬取的网页内容，提取关键信息并结构化展示
-    :param raw_response: 原始API响应
+    :param raw_response: 原始API响应 (批量爬取格式)
     :return: 结构化的网页内容字符串
     """
-    if not raw_response or "results" not in raw_response:
+    if not raw_response:
         return "❌ 无法获取网页内容"
 
-    results = raw_response.get("results", [])
-    if not results:
+    # 处理批量爬取响应格式: [{"crawlParameters": {...}, "results": {...}}, ...]
+    if isinstance(raw_response, list):
+        crawl_results = raw_response
+    else:
+        # 兼容旧格式
+        crawl_results = raw_response.get("results", []) if "results" in raw_response else []
+
+    if not crawl_results:
         return "❌ 网页内容为空"
 
     formatted_pages = []
 
-    for i, page_data in enumerate(results, 1):
-        url = page_data.get("url", "未知URL")
+    for i, crawl_item in enumerate(crawl_results, 1):
+        # 新格式：从 crawl_item 中提取 results
+        if "results" in crawl_item:
+            page_data = crawl_item["results"]
+            crawl_params = crawl_item.get("crawlParameters", {})
+            original_url = crawl_params.get("url", "未知URL")
+        else:
+            # 兼容旧格式
+            page_data = crawl_item
+            original_url = page_data.get("url", "未知URL")
+
+        url = page_data.get("link", original_url)
         title = page_data.get("title", "无标题").strip()
         content = page_data.get("content", "").strip()
 
@@ -233,7 +249,7 @@ def format_crawled_content(raw_response) -> str:
 
     # 组合所有页面内容
     final_content = f"""
-🌐 **网页爬取结果** (共 {len(results)} 个页面)
+🌐 **网页爬取结果** (共 {len(crawl_results)} 个页面)
 
 {''.join(formatted_pages)}
 
