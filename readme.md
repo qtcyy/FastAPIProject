@@ -17,7 +17,12 @@
     - 双层输出：智能总结 + 详细搜索结果（含完整链接）
     - 结构化 markdown 格式，重点信息自动加粗
     - 去重去冗余，按重要性排序组织信息
-  - 🌐 **网页爬取**：支持批量网页内容抓取和智能解析
+  - 🌐 **网页爬取**：
+    - 批量网页内容抓取和智能解析
+    - **NEW**: LLM 智能总结功能，自动分析多个网页的关键信息
+    - **🎛️ 可控总结功能**：通过 `summary_with_llm` 参数动态控制
+    - 多网页内容综合分析，识别关联性和互补性
+    - 结构化 markdown 格式，来源标注清晰
   - 🧮 **强化数学计算工具**：
     - 安全的 AST 数学表达式计算（替代不安全的 eval）
     - 支持 40+ 数学函数：三角函数、对数、指数、统计函数等
@@ -49,7 +54,7 @@
 ### AI 集成
 - **DeepSeek API**：主要 LLM 服务提供商（默认：Qwen/Qwen2.5-7B-Instruct）
 - **多工具系统**：智能搜索、安全计算、数据查询、批量爬取等
-- **智能总结引擎**：专用 LLM 模型对搜索结果进行智能总结和信息提炼
+- **智能总结引擎**：专用 LLM 模型对搜索结果和网页爬取内容进行智能总结和信息提炼
 - **MCP 客户端**：Model Context Protocol 客户端集成
 - **流式响应**：基于 Server-Sent Events 的实时对话体验
 
@@ -94,8 +99,8 @@ uvicorn main:app --host 0.0.0.0 --port 8000
     }
     ```
   - **总结功能控制**：
-    - `summary_with_llm: true` → 搜索结果经过LLM智能总结
-    - `summary_with_llm: false` → 返回原始格式化搜索结果
+    - `summary_with_llm: true` → 搜索结果和网页爬取内容经过LLM智能总结
+    - `summary_with_llm: false` → 返回原始格式化结果
 - `GET /chat/history/{thread_id}` - 获取对话历史
 - `DELETE /chat/history/{thread_id}` - 删除对话线程
 

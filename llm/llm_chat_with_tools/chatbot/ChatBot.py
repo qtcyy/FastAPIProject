@@ -32,7 +32,6 @@ from llm.llm_chat_with_tools.tools.result_processor import (
 )
 
 
-
 # 配置验证
 app_config.validate()
 
@@ -207,7 +206,9 @@ class ChatBot:
 
         return graph_builder.compile(checkpointer=self.memory)
 
-    async def generate(self, query: str, thread_id: str, summary_with_llm: bool = False):
+    async def generate(
+        self, query: str, thread_id: str, summary_with_llm: bool = False
+    ):
         """
         对话内容生成
         :param query: 问题内容
@@ -219,10 +220,7 @@ class ChatBot:
             await self.initialize()
 
         config: RunnableConfig = RunnableConfig(
-            configurable={
-                "thread_id": thread_id,
-                "summary_with_llm": summary_with_llm
-            }
+            configurable={"thread_id": thread_id, "summary_with_llm": summary_with_llm}
         )
         full_messages = ""
 

@@ -13,6 +13,7 @@ from .result_processor import process_mcp_result
 
 import sys
 from pathlib import Path
+
 sys.path.append(str(Path(__file__).parent.parent.parent.parent))
 from config import config as app_config
 
@@ -151,6 +152,75 @@ async def summary_with_llm(response: str) -> str:
         return response
 
 
+async def summary_crawled_content(content: str) -> str:
+    """
+    使用LLM对网页爬取内容进行智能总结和提炼
+
+    :param content: 格式化的网页爬取内容
+    :return: LLM总结后的精炼内容
+    """
+    try:
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    """你是一个专业的网页内容总结助手。请对提供的网页爬取内容进行智能总结和分析：
+
+1. 提取每个网页的核心信息和关键要点
+2. 去除重复、冗余和无关内容
+3. 识别网页间的关联性和互补性
+4. 按重要性和逻辑顺序组织信息
+5. 保持客观中性，准确传达原文意思
+6. 使用清晰简洁的中文表达
+7. 如果多个网页涉及同一主题，请进行综合分析
+
+输出格式要求：
+- 使用结构化的markdown格式
+- 重要信息用粗体标记
+- 适当使用列表和分段
+- 为每个关键信息标注来源网页
+- 控制总结内容在800字以内""",
+                ),
+                ("human", "请总结分析以下网页爬取内容：\n\n{crawled_content}"),
+            ]
+        )
+
+        llm = ChatOpenAI(
+            model="deepseek-ai/DeepSeek-V3",
+            base_url=app_config.deepseek_api_base,
+            api_key=app_config.deepseek_api_key,
+            temperature=0.3,  # 降低温度以获得更一致的输出
+            max_tokens=1500,
+        )
+
+        chain = prompt | llm | StrOutputParser()
+        summary_result = await chain.ainvoke({"crawled_content": content})
+
+        # 组合总结和原始内容信息
+        combined_result = f"""## 🤖 智能总结分析
+
+{summary_result.strip()}
+
+---
+
+## 📚 详细网页内容
+
+{content}"""
+
+        print(f"\n=== 网页内容LLM总结结果 ===")
+        print(f"原始网页内容长度: {len(content)} 字符")
+        print(f"总结后内容长度: {len(summary_result)} 字符")
+        print(f"总结内容:\n{summary_result}")
+        print(f"=== 网页总结结束 ===\n")
+
+        return combined_result
+
+    except Exception as e:
+        print(f"网页内容LLM总结失败: {e}")
+        # 如果LLM总结失败，返回原始格式化结果
+        return content
+
+
 def format_search_results(response, query: str) -> str:
     """
     格式化搜索结果，提供结构化和易读的输出
@@ -225,7 +295,7 @@ def clean_snippet(snippet: str) -> str:
 
 
 @tool
-def web_crawler(links: List[str]) -> str:
+async def web_crawler(links: List[str], config: RunnableConfig = None) -> str:
     """
     高效批量网页内容抓取工具 - 深度解析网页信息并智能提取关键内容
 
@@ -235,15 +305,19 @@ def web_crawler(links: List[str]) -> str:
     - 智能清理无关内容（广告、导航等），专注核心信息
     - 结构化输出，便于阅读和进一步处理
     - 自动处理缺失标题，从URL推断页面主题
+    - 🤖 支持LLM智能总结：根据配置可开启智能总结功能，提取关键信息并去除冗余内容
 
     使用场景：
     - 获取搜索结果页面的详细内容
     - 收集多个相关网页的完整信息
     - 提取文章、新闻、产品页面的核心内容
     - 对比分析不同网站的信息
+    - 通过LLM总结快速理解多个网页的核心内容
 
     :param links: 需要抓取的网页URL列表，支持HTTP/HTTPS协议
-    :return: 结构化的网页内容字符串，包含每个页面的标题、链接、内容摘要和信息来源标注
+    :param config: 运行配置，包含summary_with_llm参数控制是否启用LLM总结
+    :return: 结构化的网页内容字符串，包含每个页面的标题、链接、内容摘要和信息来源标注。
+            如启用LLM总结，将返回智能总结分析 + 原始详细内容
 
     注意：建议一次抓取不超过5个链接，确保响应速度和内容质量
     """
@@ -263,7 +337,22 @@ def web_crawler(links: List[str]) -> str:
     formatted_content = format_crawled_content(response)
     print(f"\n格式化后的网页内容:\n{formatted_content}")
 
-    return formatted_content
+    # 检查是否启用LLM总结功能
+    summary_enabled = False
+    if config and config.get("configurable"):
+        summary_enabled = config["configurable"].get("summary_with_llm", False)
+
+    print(f"🤖 LLM智能总结功能状态: {'启用' if summary_enabled else '关闭'}")
+
+    if summary_enabled:
+        # 使用LLM进行智能总结
+        print("🔄 正在使用LLM对网页内容进行智能总结...")
+        summarized_content = await summary_crawled_content(formatted_content)
+        return summarized_content
+    else:
+        # 直接返回格式化结果
+        print("📄 返回原始格式化网页内容")
+        return formatted_content
 
 
 def format_crawled_content(raw_response) -> str:
@@ -388,71 +477,6 @@ def extract_key_paragraphs(content: str) -> str:
     selected_paragraphs = meaningful_paragraphs[:3]
 
     return "\n\n".join(selected_paragraphs)
-
-
-@tool
-async def query_student_avg_grade(
-    class_name: str, process_result: bool = True, processing_mode: str = "formatted"
-) -> str:
-    """
-    查询指定班级的平均成绩统计信息。
-
-    此工具用于获取特定班级所有学生在语文、数学、英语三门科目的平均分数，
-    以及该班级的学生总数。适用于教师查看班级整体学习情况、进行成绩分析等场景。
-
-    Args:
-        class_name (str): 要查询的班级名称，例如 "class_1"、"三年级一班" 等。
-                         班级名称需要与数据库中存储的完全匹配。
-        process_result (bool): 是否对结果进行处理，默认True
-        processing_mode (str): 处理模式 (raw/summary/formatted/filtered/structured)，默认formatted
-
-    Returns:
-        str: 返回包含班级平均成绩信息的JSON字符串，包含以下字段：
-            - class_name: 班级名称
-            - chinese_avg: 语文平均分（保留2位小数）
-            - math_avg: 数学平均分（保留2位小数）
-            - english_avg: 英语平均分（保留2位小数）
-
-    Example:
-        输入: "class_1"
-        输出: {
-            "class_name": "class_1",
-            "chinese_avg": 85.67,
-            "math_avg": 78.92,
-            "english_avg": 82.45,
-        }
-
-    Usage Scenarios:
-        - 教师查看班级整体学习水平
-        - 对比不同班级的成绩表现
-        - 生成班级成绩报告
-        - 分析各科目强弱项
-
-    Note:
-        - 如果班级不存在或没有成绩数据，将返回相应的错误信息
-        - 平均分计算基于该班级所有有效的考试成绩记录
-        - 确保输入的班级名称准确无误
-    """
-    async with client:
-        result = await client.call_tool(
-            "get_class_average_grade", {"class_name": class_name}
-        )
-        json_str = result.content[0].text
-
-        # 如果启用结果处理，对原始结果进行处理
-        if process_result:
-            try:
-                processed_result = await process_mcp_result(
-                    tool_name="query_student_avg_grade",
-                    result=json_str,
-                    mode=processing_mode,
-                )
-                return processed_result
-            except Exception as e:
-                print(f"结果处理失败: {e}")
-                return json_str
-
-        return json_str
 
 
 async def label_extra(query):
