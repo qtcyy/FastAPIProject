@@ -11,11 +11,12 @@ import os
 from fastmcp import Client
 from .result_processor import process_mcp_result
 
-search_url = "https://api.search1api.com/search"
-crawl_url = "https://api.search1api.com/crawl"
-search_api_key = "F016AD79-D8F4-4A2E-B53F-8578A4D43DDB"
+import sys
+from pathlib import Path
+sys.path.append(str(Path(__file__).parent.parent.parent.parent))
+from config import config as app_config
 
-client = Client("http://localhost:8080/mcp")
+client = Client(app_config.mcp_server_url)
 
 
 @tool
@@ -50,9 +51,9 @@ async def search_tool(query: str, config: RunnableConfig = None) -> str:
     print(f"query: {query}")
     # await label_extra(query)
     response = requests.post(
-        url=search_url,
+        url=app_config.search_api_url,
         headers={
-            "Authorization": f"Bearer {search_api_key}",
+            "Authorization": f"Bearer {app_config.search_api_key}",
         },
         json={"query": query, "search_service": "google", "max_results": 10},
     )
@@ -116,8 +117,8 @@ async def summary_with_llm(response: str) -> str:
 
         llm = ChatOpenAI(
             model="deepseek-ai/DeepSeek-V3",
-            base_url="https://api.siliconflow.cn/v1",
-            api_key="sk-klxcwiidfejlwzupobhtdvwkzdvwtsxqekqucykewmyfryis",
+            base_url=app_config.deepseek_api_base,
+            api_key=app_config.deepseek_api_key,
             temperature=0.3,  # 降低温度以获得更一致的输出
             max_tokens=1000,
         )
@@ -248,9 +249,9 @@ def web_crawler(links: List[str]) -> str:
     """
     crawl_request = [{"url": link} for link in links]
     response = requests.post(
-        url=crawl_url,
+        url=app_config.crawl_api_url,
         headers={
-            "Authorization": f"Bearer {search_api_key}",
+            "Authorization": f"Bearer {app_config.search_api_key}",
         },
         json=crawl_request,
     )

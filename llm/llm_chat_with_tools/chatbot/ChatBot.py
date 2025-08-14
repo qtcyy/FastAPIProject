@@ -19,6 +19,8 @@ from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.graph import add_messages, StateGraph, START
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
+from config import config as app_config
+
 from llm.llm_chat_with_tools.tools.calculate_tools import calculate_tools, advanced_math
 from llm.llm_chat_with_tools.tools.search_tools import (
     search_tool,
@@ -31,13 +33,8 @@ from llm.llm_chat_with_tools.tools.result_processor import (
 
 
 
-os.environ["OPENAI_API_KEY"] = "sk-klxcwiidfejlwzupobhtdvwkzdvwtsxqekqucykewmyfryis"
-os.environ["OPENAI_API_BASE"] = "https://api.siliconflow.cn/v1/chat/completions"
-os.environ["DEEPSEEK_API_KEY"] = "sk-klxcwiidfejlwzupobhtdvwkzdvwtsxqekqucykewmyfryis"
-os.environ["DEEPSEEK_API_BASE"] = "https://api.siliconflow.cn/v1"
-
-api_key = os.environ["OPENAI_API_KEY"]
-api_base = os.environ["OPENAI_API_BASE"]
+# 配置验证
+app_config.validate()
 
 
 class ChatState(TypedDict):
@@ -71,7 +68,7 @@ SimplePrompt = """你是一个专业的AI智能助手，拥有多种工具能力
 client = MultiServerMCPClient(
     {
         "Student_Grade_System": {
-            "url": "http://localhost:8080/mcp",
+            "url": app_config.mcp_server_url,
             "transport": "streamable_http",
         }
     }
@@ -124,7 +121,7 @@ class ChatBot:
 
     async def initialize(self):
         conn = await psycopg.AsyncConnection.connect(
-            "postgresql://qtcyy:12345678@localhost:5432/chatbot",
+            app_config.database_url,
             autocommit=True,
         )
         self.memory = AsyncPostgresSaver(conn)
