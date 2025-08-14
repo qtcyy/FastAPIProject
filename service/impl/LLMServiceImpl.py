@@ -179,3 +179,15 @@ class LLMServiceImpl(LLMService):
             return {"message": "success", "status": True}
         else:
             return {"message": "failed", "status": False}
+
+    @override
+    async def get_message_by_id(
+        self, thread_id: str, message_id: str
+    ) -> BaseMessage:
+        """
+        根据消息ID获取指定消息
+        :param thread_id: 线程ID
+        :param message_id: 消息ID
+        :return: 消息对象
+        """
+        return await self.chatbot.get_message_by_id(thread_id, message_id)

@@ -1,6 +1,6 @@
-from typing import List, Any
+from typing import List, Any, Union
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from langchain_core.messages import BaseMessage
 
 from service.impl.LLMServiceImpl import LLMService, LLMServiceImpl
@@ -19,6 +19,9 @@ class LLMController:
         self.router.post("/house/")(self.get_house_info)
         self.router.post("/chat/tools")(self.chat_with_tools)
         self.router.get("/chat/history/{thread_id}")(self.get_history)
+        self.router.get("/chat/message/{thread_id}/{message_id}")(
+            self.get_message_by_id
+        )
         self.router.delete("/chat/history/{thread_id}")(self.delete_thread)
         self.router.post("/chat/history/edit")(self.edit_message)
         self.router.post("/chat/history/edit/id")(self.edit_message_with_id)
@@ -38,10 +41,10 @@ class LLMController:
         :return: sse返回回复内容
         """
         return await self.llm_service.chat_with_tools(
-            query=request.query, 
-            thread_id=request.thread_id, 
+            query=request.query,
+            thread_id=request.thread_id,
             model=request.model,
-            summary_with_llm=request.summary_with_llm
+            summary_with_llm=request.summary_with_llm,
         )
 
     async def get_history(self, thread_id: str) -> List[BaseMessage]:
@@ -51,6 +54,23 @@ class LLMController:
         :return: 历史记录
         """
         return await self.llm_service.get_history(thread_id=thread_id)
+
+    async def get_message_by_id(self, thread_id: str, message_id: str) -> BaseMessage:
+        """
+        根据消息ID获取指定消息
+        :param thread_id: 线程ID
+        :param message_id: 消息ID
+        :return: 消息对象
+        """
+        message = await self.llm_service.get_message_by_id(
+            thread_id=thread_id, message_id=message_id
+        )
+        if message is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Message with ID {message_id} not found in thread {thread_id}",
+            )
+        return message
 
     async def delete_thread(self, thread_id: str) -> dict[str, Any]:
         """
@@ -77,7 +97,7 @@ class LLMController:
         :return: 请求状态
         """
         return await self.llm_service.edit_message_with_id(
-            request.thread_id, request.message_idx, request.new_content
+            request.thread_id, request.message_id, request.new_content
         )
 
     async def delete_message(self, request: EditMessageRequest) -> dict[str, Any]:
@@ -99,7 +119,7 @@ class LLMController:
         :return: 请求状态
         """
         return await self.llm_service.delete_message_with_id(
-            request.thread_id, request.message_idx
+            request.thread_id, request.message_id
         )
 
     async def delete_messages_after_with_id(

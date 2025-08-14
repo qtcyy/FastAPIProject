@@ -69,9 +69,9 @@ async def search_tool(query: str, config: RunnableConfig = None) -> str:
     summary_enabled = False
     if config and config.get("configurable"):
         summary_enabled = config["configurable"].get("summary_with_llm", False)
-    
+
     print(f"🤖 LLM智能总结功能状态: {'启用' if summary_enabled else '关闭'}")
-    
+
     if summary_enabled:
         # llm再提炼
         print("🔄 正在使用LLM进行智能总结...")
@@ -86,13 +86,16 @@ async def search_tool(query: str, config: RunnableConfig = None) -> str:
 async def summary_with_llm(response: str) -> str:
     """
     使用LLM对搜索结果进行智能总结和提炼
-    
+
     :param response: 格式化的搜索结果文本
     :return: LLM总结后的精炼内容
     """
     try:
-        prompt = ChatPromptTemplate.from_messages([
-            ("system", """你是一个专业的信息总结助手。请对提供的搜索结果进行智能总结和提炼：
+        prompt = ChatPromptTemplate.from_messages(
+            [
+                (
+                    "system",
+                    """你是一个专业的信息总结助手。请对提供的搜索结果进行智能总结和提炼：
 
 1. 提取最核心、最有价值的信息
 2. 去除重复和冗余内容
@@ -105,21 +108,23 @@ async def summary_with_llm(response: str) -> str:
 - 使用结构化的markdown格式
 - 重要信息用粗体标记
 - 适当使用列表和分段
-- 控制在500字以内"""),
-            ("human", "请总结以下搜索结果：\n\n{search_content}")
-        ])
-        
+- 控制在500字以内""",
+                ),
+                ("human", "请总结以下搜索结果：\n\n{search_content}"),
+            ]
+        )
+
         llm = ChatOpenAI(
             model="deepseek-ai/DeepSeek-V3",
             base_url="https://api.siliconflow.cn/v1",
             api_key="sk-klxcwiidfejlwzupobhtdvwkzdvwtsxqekqucykewmyfryis",
             temperature=0.3,  # 降低温度以获得更一致的输出
-            max_tokens=1000
+            max_tokens=1000,
         )
-        
+
         chain = prompt | llm | StrOutputParser()
         summary_result = await chain.ainvoke({"search_content": response})
-        
+
         # 组合总结和原始链接信息
         combined_result = f"""## 🤖 智能总结
 
@@ -130,15 +135,15 @@ async def summary_with_llm(response: str) -> str:
 ## 📚 详细搜索结果
 
 {response}"""
-        
+
         print(f"\n=== LLM总结结果 ===")
         print(f"原始搜索结果长度: {len(response)} 字符")
         print(f"总结后内容长度: {len(summary_result)} 字符")
         print(f"总结内容:\n{summary_result}")
         print(f"=== 总结结束 ===\n")
-        
+
         return combined_result
-        
+
     except Exception as e:
         print(f"LLM总结失败: {e}")
         # 如果LLM总结失败，返回原始格式化结果

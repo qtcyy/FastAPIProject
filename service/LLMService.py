@@ -56,3 +56,8 @@ class LLMService(ABC):
     async def delete_messages_after_with_id(
         self, thread_id: str, message_id: str
     ) -> dict[str, Any]: ...
+
+    @abstractmethod
+    async def get_message_by_id(
+        self, thread_id: str, message_id: str
+    ) -> BaseMessage: ...

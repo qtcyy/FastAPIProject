@@ -100,6 +100,7 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 - `DELETE /chat/history/{thread_id}` - 删除对话线程
 
 ### 消息管理
+- `GET /chat/message/{thread_id}/{message_id}` - 根据消息ID获取指定消息
 - `POST /chat/history/edit` - 编辑消息（按索引）
 - `POST /chat/history/edit/id` - 编辑消息（按ID）
 - `POST /chat/history/delete` - 删除消息

@@ -447,6 +447,28 @@ class ChatBot:
             print(f"Error on delete message with id: {str(e)}")
             return False
 
+    async def get_message_by_id(self, thread_id: str, message_id: str) -> BaseMessage:
+        """
+        根据消息ID获取指定消息
+        :param thread_id: 线程ID
+        :param message_id: 消息ID
+        :return: 消息对象，如果未找到返回None
+        """
+        if self.graph is None:
+            await self.initialize()
+
+        config = RunnableConfig(configurable={"thread_id": thread_id})
+        try:
+            state = await self.graph.aget_state(config)
+            messages = state.values.get("messages", [])
+            for message in messages:
+                if message.id == message_id:
+                    return message
+            return None
+        except Exception as e:
+            print(f"Error getting message by id: {str(e)}")
+            return None
+
     async def generate_test(self, query: str):
         """
         测试方法（测试用）
