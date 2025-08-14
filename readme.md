@@ -10,7 +10,12 @@
 
 - **智能对话系统**：基于 LangChain 和 LangGraph 的多轮对话
 - **强化工具集成**：
-  - 🔍 **网页搜索**：集成 search1api 实时搜索功能
+  - 🔍 **智能网页搜索**：
+    - 集成 search1api 实时搜索功能
+    - **NEW**: LLM 智能总结功能，自动提炼搜索结果核心信息
+    - 双层输出：智能总结 + 详细搜索结果（含完整链接）
+    - 结构化 markdown 格式，重点信息自动加粗
+    - 去重去冗余，按重要性排序组织信息
   - 🌐 **网页爬取**：支持批量网页内容抓取和智能解析
   - 🧮 **强化数学计算工具**：
     - 安全的 AST 数学表达式计算（替代不安全的 eval）
@@ -43,6 +48,7 @@
 ### AI 集成
 - **DeepSeek API**：主要 LLM 服务提供商（默认：Qwen/Qwen2.5-7B-Instruct）
 - **多工具系统**：智能搜索、安全计算、数据查询、批量爬取等
+- **智能总结引擎**：专用 LLM 模型对搜索结果进行智能总结和信息提炼
 - **MCP 客户端**：Model Context Protocol 客户端集成
 - **流式响应**：基于 Server-Sent Events 的实时对话体验
 
@@ -106,7 +112,7 @@ FastAPIProject/
 │   │   │   └── ChatBot.py
 │   │   └── tools/             # 工具集成
 │   │       ├── calculate_tools.py    # 强化数学计算工具
-│   │       ├── search_tools.py       # 搜索和爬取工具
+│   │       ├── search_tools.py       # 智能搜索和爬取工具（含LLM总结）
 │   │       └── result_processor.py   # MCP结果处理器
 │   ├── llm_praser/            # 输出解析
 │   └── llm_chat/              # 基础对话

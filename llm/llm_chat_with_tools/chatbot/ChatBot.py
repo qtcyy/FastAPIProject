@@ -240,7 +240,10 @@ class ChatBot:
         ):
             # print(chunk)
             event = chunk[0]
+            config = chunk[1]
             if isinstance(event, AIMessageChunk):
+                if config.get("name") and config["name"] == "search":
+                    continue
                 full_messages += event.content
                 print(event.content, end="")
             yield f"data: {json.dumps(dict(chunk[0]), ensure_ascii=False)}\n\n"
