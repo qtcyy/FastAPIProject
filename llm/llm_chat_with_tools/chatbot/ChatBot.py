@@ -96,6 +96,7 @@ class ChatBot:
             model=model,
             verbose=False,
             temperature=0.6,
+            extra_body={"thinking_budget": 1024},
         )
         self.tools = [
             search_tool,
@@ -254,7 +255,6 @@ class ChatBot:
         config: RunnableConfig = RunnableConfig(configurable={"thread_id": thread_id})
         try:
             state = await self.graph.aget_state(config)
-            print(f"messages: {state.values['messages']}")
             if state and state.values and "messages" in state.values:
                 return state.values["messages"]
             return []
