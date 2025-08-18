@@ -8,7 +8,10 @@
 
 ### 已实现功能
 
-- **智能对话系统**：基于 LangChain 和 LangGraph 的多轮对话
+- **智能对话系统**：
+  - 基于 LangChain 和 LangGraph 的多轮对话
+  - **⏰ 时间感知功能**：系统自动获取并显示当前中国标准时间 (GMT+8)
+  - 增强时效性查询的准确性，为时间敏感问题提供精准回答
 - **强化工具集成**：
   - 🔍 **智能网页搜索**：
     - 集成 search1api 实时搜索功能
@@ -42,6 +45,8 @@
   - 多线程对话管理
 - **多模型支持**：支持 DeepSeek、OpenAI 兼容 API
 - **流式响应**：Server-Sent Events 实时对话体验
+- **跨域支持**：已配置 CORS 中间件，支持所有来源的跨域请求
+- **多智能体测试框架**：支持并行和顺序多智能体协作测试
 
 ## 技术架构
 
@@ -55,6 +60,7 @@
 - **DeepSeek API**：主要 LLM 服务提供商（默认：Qwen/Qwen2.5-7B-Instruct）
 - **多工具系统**：智能搜索、安全计算、数据查询、批量爬取等
 - **智能总结引擎**：专用 LLM 模型对搜索结果和网页爬取内容进行智能总结和信息提炼
+- **动态时间感知**：每次对话自动更新当前时间信息，提升时效性查询准确性
 - **MCP 客户端**：Model Context Protocol 客户端集成
 - **流式响应**：基于 Server-Sent Events 的实时对话体验
 
@@ -67,7 +73,7 @@
 
 ### 安装依赖
 ```bash
-pip install fastapi uvicorn langchain langchain-anthropic langchain-deepseek langchain-openai langgraph psycopg asyncpg fastmcp
+pip install fastapi uvicorn langchain langchain-anthropic langchain-deepseek langchain-openai langgraph psycopg asyncpg fastmcp pytz
 ```
 
 ### 数据库配置
@@ -137,6 +143,9 @@ FastAPIProject/
 │   └── llm_chat/              # 基础对话
 ├── dao/                       # 数据访问层
 ├── vo/                        # 数据传输对象
+├── Test/                      # 测试模块
+│   ├── multi_agent.py         # 多智能体测试框架
+│   └── multi_agent_test_report.json  # 测试报告
 ├── test_enhanced_calculate.py # 计算工具测试
 └── test_main.http             # API 测试文件
 ```
@@ -150,6 +159,7 @@ FastAPIProject/
 - 使用 `test_main.http` 文件测试 API 接口
 - 访问 `http://localhost:8000/docs` 查看自动生成的 API 文档
 - 运行 `python test_enhanced_calculate.py` 测试数学计算功能
+- 运行 `python Test/multi_agent.py` 测试多智能体协作功能
 - 运行 `dao/test/` 中的数据库测试文件
 
 ### 扩展功能
