@@ -191,3 +191,12 @@ class LLMServiceImpl(LLMService):
         :return: 消息对象
         """
         return await self.chatbot.get_message_by_id(thread_id, message_id)
+
+    @override
+    async def generate_chat_name(self, thread_id: str) -> str:
+        """
+        为对话生成智能标题
+        :param thread_id: 线程ID
+        :return: 生成的对话标题
+        """
+        return await self.chatbot.named_chat(thread_id)

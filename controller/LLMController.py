@@ -30,6 +30,7 @@ class LLMController:
         self.router.post("/chat/history/delete/after")(
             self.delete_messages_after_with_id
         )
+        self.router.post("/chat/name/{thread_id}")(self.generate_chat_name)
 
     async def get_house_info(self, request: HouseInfoRequest):
         return await self.llm_service.get_house_info_service(request.query)
@@ -133,3 +134,15 @@ class LLMController:
         return await self.llm_service.delete_messages_after_with_id(
             request.thread_id, request.message_id
         )
+
+    async def generate_chat_name(self, thread_id: str) -> dict[str, str]:
+        """
+        为对话生成智能标题
+        :param thread_id: 对话线程ID
+        :return: 包含生成标题的字典
+        """
+        try:
+            title = await self.llm_service.generate_chat_name(thread_id)
+            return {"thread_id": thread_id, "title": title, "status": "success"}
+        except Exception as e:
+            raise HTTPException(status_code=500, detail=f"生成对话标题失败: {str(e)}")

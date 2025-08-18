@@ -61,3 +61,6 @@ class LLMService(ABC):
     async def get_message_by_id(
         self, thread_id: str, message_id: str
     ) -> BaseMessage: ...
+
+    @abstractmethod
+    async def generate_chat_name(self, thread_id: str) -> str: ...

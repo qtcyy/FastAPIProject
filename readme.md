@@ -43,6 +43,7 @@
   - 基于 PostgreSQL 的持久化存储
   - 支持消息编辑、删除、历史查询
   - 多线程对话管理
+  - **智能对话命名**：基于LLM的自动标题生成，准确概括对话主题
 - **多模型支持**：支持 DeepSeek、OpenAI 兼容 API
 - **流式响应**：Server-Sent Events 实时对话体验
 - **跨域支持**：已配置 CORS 中间件，支持所有来源的跨域请求
@@ -117,6 +118,22 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 - `POST /chat/history/delete` - 删除消息
 - `POST /chat/history/delete/after` - 删除指定消息之后的所有消息
 
+### 智能功能
+- `POST /chat/name/{thread_id}` - **智能对话命名**：根据对话内容自动生成简洁有意义的标题
+  - **功能特点**：
+    - 分析对话前几轮内容，提取核心主题
+    - 生成8-15字符的简洁标题
+    - 智能识别技术问题、日常对话等不同类型
+    - 自动过滤冗余词汇，突出关键信息
+  - **返回格式**：
+    ```json
+    {
+      "thread_id": "string",
+      "title": "生成的对话标题",
+      "status": "success"
+    }
+    ```
+
 ### 特殊功能
 - `POST /house/` - 房屋信息结构化提取
 
@@ -160,6 +177,7 @@ FastAPIProject/
 - 访问 `http://localhost:8000/docs` 查看自动生成的 API 文档
 - 运行 `python test_enhanced_calculate.py` 测试数学计算功能
 - 运行 `python Test/multi_agent.py` 测试多智能体协作功能
+- 运行 `python test_chat_naming.py` 测试智能对话命名功能
 - 运行 `dao/test/` 中的数据库测试文件
 
 ### 扩展功能

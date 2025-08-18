@@ -1,5 +1,6 @@
 import json
-from typing import TypedDict, Annotated, Sequence, List
+import uuid
+from typing import TypedDict, Annotated, Sequence, List, Coroutine, Any, Optional
 from datetime import datetime
 import pytz
 
@@ -17,9 +18,11 @@ from langchain_deepseek import ChatDeepSeek
 import os
 
 from langchain_mcp_adapters.client import MultiServerMCPClient
+from langgraph.graph.state import CompiledStateGraph
 from langgraph.prebuilt import ToolNode, tools_condition
 from langgraph.graph import add_messages, StateGraph, START
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from langgraph.typing import StateT
 
 from config import config as app_config
 
@@ -45,17 +48,22 @@ class ChatState(TypedDict):
 def get_current_time_prompt() -> str:
     """获取包含当前时间信息的系统提示词"""
     # 获取中国时间（东八区）
-    china_tz = pytz.timezone('Asia/Shanghai')
+    china_tz = pytz.timezone("Asia/Shanghai")
     current_time = datetime.now(china_tz)
-    
+
     # 格式化时间信息
     time_str = current_time.strftime("%Y年%m月%d日 %H:%M:%S")
     weekday_map = {
-        0: "星期一", 1: "星期二", 2: "星期三", 3: "星期四", 
-        4: "星期五", 5: "星期六", 6: "星期日"
+        0: "星期一",
+        1: "星期二",
+        2: "星期三",
+        3: "星期四",
+        4: "星期五",
+        5: "星期六",
+        6: "星期日",
     }
     weekday = weekday_map[current_time.weekday()]
-    
+
     return f"""你是一个专业的AI智能助手，拥有多种工具能力，致力于为用户提供准确、及时、有用的信息和解决方案。
 
 ⏰ **当前时间**: {time_str} ({weekday}) - 中国标准时间 (GMT+8)
@@ -83,6 +91,7 @@ def get_current_time_prompt() -> str:
 - 始终以用户需求为导向，灵活运用各种工具组合
 
 请根据用户问题的性质，智能选择最合适的工具组合来提供最佳解决方案。"""
+
 
 client = MultiServerMCPClient(
     {
@@ -133,9 +142,10 @@ class ChatBot:
 
         self.chain = None
 
-        # self.graph = self.create_graph()
-        self.memory = None
-        self.graph = None
+        # 类型注解：明确graph的类型，帮助IDE提供代码补全
+        # 初始化时为None，调用initialize()后会被正确初始化
+        self.memory: Optional[AsyncPostgresSaver] = None
+        self.graph: Optional[CompiledStateGraph[ChatState]] = None
 
     async def initialize(self):
         conn = await psycopg.AsyncConnection.connect(
@@ -162,15 +172,15 @@ class ChatBot:
         messages = state["messages"]
         print(f"messages: {messages}")
         print("chatbot")
-        
+
         # 动态创建包含当前时间的prompt
         current_prompt = ChatPromptTemplate.from_messages(
             [("system", get_current_time_prompt()), ("placeholder", "{messages}")]
         )
-        
+
         # 创建包含当前时间信息的chain
         chain = current_prompt | self.llm_with_tools
-        
+
         response = await chain.ainvoke({"messages": messages})
         return {"messages": response}
 
@@ -250,6 +260,9 @@ class ChatBot:
         if self.graph is None:
             await self.initialize()
 
+        # 类型断言：告诉IDE此时graph不为None，提供完整的代码补全
+        assert self.graph is not None, "Graph should be initialized"
+
         config: RunnableConfig = RunnableConfig(
             configurable={"thread_id": thread_id, "summary_with_llm": summary_with_llm}
         )
@@ -273,6 +286,137 @@ class ChatBot:
         # print(f"\nfull_messages:\n {full_messages}")
         yield "data: [DONE]\n"
 
+    async def named_chat(self, thread_id: str) -> str:
+        """
+        根据对话内容给对话命名，生成简洁有意义的对话标题
+        :param thread_id: 线程ID
+        :return: 对话标题，如果失败返回默认标题
+        """
+        if self.graph is None:
+            await self.initialize()
+
+        assert self.graph is not None, "Graph should be initialized"
+
+        config: RunnableConfig = RunnableConfig(configurable={"thread_id": thread_id})
+        try:
+            # 获取对话历史
+            state = await self.graph.aget_state(config)
+            if not (state and state.values and "messages" in state.values):
+                return "新对话"
+            
+            messages: List[BaseMessage] = state.values["messages"]
+            if not messages:
+                return "新对话"
+            
+            # 提取对话内容用于生成标题
+            conversation_content = self._extract_conversation_for_naming(messages)
+            if not conversation_content.strip():
+                return "新对话"
+            
+            # 创建专门的命名提示词
+            naming_prompt = ChatPromptTemplate.from_messages([
+                ("system", """你是一个专业的对话标题生成助手。请根据提供的对话内容，生成一个简洁、准确、有意义的对话标题。
+
+要求：
+1. 标题长度控制在8-15个字符
+2. 准确概括对话的主要话题或内容
+3. 使用简洁明了的中文表达
+4. 避免使用"关于"、"讨论"等冗余词汇
+5. 突出对话的核心主题或关键词
+6. 如果是技术问题，可以包含技术关键词
+7. 如果是日常对话，突出主要话题
+
+示例：
+- 对话涉及Python编程 → "Python编程问题"
+- 讨论机器学习算法 → "机器学习算法"
+- 询问天气情况 → "天气查询"
+- 数学计算问题 → "数学计算"
+- 工作规划讨论 → "工作规划"
+
+请直接输出标题，不要包含任何解释或额外文字。"""),
+                ("human", "请为以下对话生成标题：\n\n{conversation}")
+            ])
+            
+            # 创建命名链
+            naming_chain = naming_prompt | self.llm
+            
+            # 生成标题
+            response = await naming_chain.ainvoke({"conversation": conversation_content})
+            
+            # 提取并清理标题
+            title = self._clean_generated_title(response.content if hasattr(response, 'content') else str(response))
+            
+            print(f"为对话 {thread_id} 生成标题: {title}")
+            return title
+            
+        except Exception as e:
+            print(f"Error generating chat name: {e}")
+            return "新对话"
+    
+    def _extract_conversation_for_naming(self, messages: List[BaseMessage]) -> str:
+        """
+        从消息列表中提取用于命名的关键对话内容
+        :param messages: 消息列表
+        :return: 提取的对话内容
+        """
+        conversation_parts = []
+        human_messages = []
+        ai_messages = []
+        
+        # 提取前几轮对话，重点关注用户问题和AI回答
+        for message in messages:
+            if isinstance(message, HumanMessage):
+                human_messages.append(message.content)
+            elif isinstance(message, AIMessage):
+                ai_messages.append(message.content)
+        
+        # 优先使用前3个用户消息，这通常能反映对话主题
+        for i, human_msg in enumerate(human_messages[:3]):
+            conversation_parts.append(f"用户: {human_msg}")
+            # 如果有对应的AI回答，也包含（但限制长度）
+            if i < len(ai_messages):
+                ai_response = ai_messages[i][:200]  # 限制AI回答长度
+                conversation_parts.append(f"助手: {ai_response}")
+        
+        # 组合对话内容，控制总长度
+        conversation_text = "\n".join(conversation_parts)
+        
+        # 限制总长度，避免token过多
+        if len(conversation_text) > 1000:
+            conversation_text = conversation_text[:1000] + "..."
+        
+        return conversation_text
+    
+    def _clean_generated_title(self, raw_title: str) -> str:
+        """
+        清理和优化生成的标题
+        :param raw_title: 原始生成的标题
+        :return: 清理后的标题
+        """
+        if not raw_title:
+            return "新对话"
+        
+        # 移除可能的引号、换行符等
+        title = raw_title.strip().strip('"\'""''').strip()
+        
+        # 移除可能的前缀
+        prefixes_to_remove = ["标题：", "标题:", "对话标题：", "对话标题:", "题目：", "题目:"]
+        for prefix in prefixes_to_remove:
+            if title.startswith(prefix):
+                title = title[len(prefix):].strip()
+        
+        # 长度控制
+        if len(title) > 20:
+            title = title[:17] + "..."
+        elif len(title) < 2:
+            title = "新对话"
+        
+        # 如果标题为空或只包含标点符号，返回默认值
+        if not title or title.isspace() or all(c in "。，、；：！？" for c in title):
+            return "新对话"
+        
+        return title
+
     async def get_history(self, thread_id: str) -> List[BaseMessage]:
         """
         获取历史记录
@@ -281,6 +425,8 @@ class ChatBot:
         """
         if self.graph is None:
             await self.initialize()
+
+        assert self.graph is not None, "Graph should be initialized"
 
         config: RunnableConfig = RunnableConfig(configurable={"thread_id": thread_id})
         try:
@@ -301,6 +447,8 @@ class ChatBot:
         if self.graph is None:
             await self.initialize()
 
+        assert self.memory is not None, "Memory should be initialized"
+
         try:
             await self.memory.adelete_thread(thread_id)
             return True
@@ -320,6 +468,9 @@ class ChatBot:
         """
         if self.graph is None:
             await self.initialize()
+
+        assert self.graph is not None, "Graph should be initialized"
+        assert self.memory is not None, "Memory should be initialized"
 
         config = RunnableConfig(configurable={"thread_id": thread_id})
         try:
@@ -353,6 +504,9 @@ class ChatBot:
         """
         if self.graph is None:
             await self.initialize()
+
+        assert self.graph is not None, "Graph should be initialized"
+        assert self.memory is not None, "Memory should be initialized"
 
         config = RunnableConfig(configurable={"thread_id": thread_id})
         try:
@@ -390,6 +544,9 @@ class ChatBot:
         if self.graph is None:
             await self.initialize()
 
+        assert self.graph is not None, "Graph should be initialized"
+        assert self.memory is not None, "Memory should be initialized"
+
         config = RunnableConfig(configurable={"thread_id": thread_id})
         try:
             state = await self.graph.aget_state(config)
@@ -414,6 +571,9 @@ class ChatBot:
         """
         if self.graph is None:
             await self.initialize()
+
+        assert self.graph is not None, "Graph should be initialized"
+        assert self.memory is not None, "Memory should be initialized"
 
         config = RunnableConfig(configurable={"thread_id": thread_id})
         try:
@@ -446,6 +606,9 @@ class ChatBot:
         """
         if self.graph is None:
             await self.initialize()
+
+        assert self.graph is not None, "Graph should be initialized"
+        assert self.memory is not None, "Memory should be initialized"
 
         config = RunnableConfig(configurable={"thread_id": thread_id})
         try:
@@ -482,6 +645,8 @@ class ChatBot:
         if self.graph is None:
             await self.initialize()
 
+        assert self.graph is not None, "Graph should be initialized"
+
         config = RunnableConfig(configurable={"thread_id": thread_id})
         try:
             state = await self.graph.aget_state(config)
@@ -500,6 +665,11 @@ class ChatBot:
         :param query: 问题
         :return: None
         """
+        if self.graph is None:
+            await self.initialize()
+
+        assert self.graph is not None, "Graph should be initialized"
+
         config: RunnableConfig = RunnableConfig(configurable={"thread_id": "1"})
         full_messages = ""
 
