@@ -1,5 +1,7 @@
 import json
 from typing import TypedDict, Annotated, Sequence, List
+from datetime import datetime
+import pytz
 
 import psycopg
 from langchain_core.messages import (
@@ -40,7 +42,23 @@ class ChatState(TypedDict):
     messages: Annotated[Sequence[BaseMessage], add_messages]
 
 
-SimplePrompt = """你是一个专业的AI智能助手，拥有多种工具能力，致力于为用户提供准确、及时、有用的信息和解决方案。
+def get_current_time_prompt() -> str:
+    """获取包含当前时间信息的系统提示词"""
+    # 获取中国时间（东八区）
+    china_tz = pytz.timezone('Asia/Shanghai')
+    current_time = datetime.now(china_tz)
+    
+    # 格式化时间信息
+    time_str = current_time.strftime("%Y年%m月%d日 %H:%M:%S")
+    weekday_map = {
+        0: "星期一", 1: "星期二", 2: "星期三", 3: "星期四", 
+        4: "星期五", 5: "星期六", 6: "星期日"
+    }
+    weekday = weekday_map[current_time.weekday()]
+    
+    return f"""你是一个专业的AI智能助手，拥有多种工具能力，致力于为用户提供准确、及时、有用的信息和解决方案。
+
+⏰ **当前时间**: {time_str} ({weekday}) - 中国标准时间 (GMT+8)
 
 核心能力与工具：
 🔍 智能搜索：实时获取最新网络信息，包括新闻、资讯、技术文档等
@@ -54,12 +72,14 @@ SimplePrompt = """你是一个专业的AI智能助手，拥有多种工具能力
 3. 深度分析：搜索后根据需要使用网页爬取工具获取详细内容
 4. 结构化回答：以清晰、有条理的方式组织和呈现信息
 5. 主动思考：理解用户真实意图，提供超出预期的有价值建议
+6. 时间感知：充分利用当前时间信息，为用户提供时效性准确的回答
 
 响应策略：
 - 对于时效性强的问题（天气、新闻、股价等），必须使用搜索工具
 - 对于需要详细信息的查询，先搜索概况，再爬取具体内容
 - 对于计算类问题，使用计算工具确保准确性
 - 对于数据查询需求，使用相应的查询工具
+- 对于时间相关的查询，参考当前时间提供准确信息
 - 始终以用户需求为导向，灵活运用各种工具组合
 
 请根据用户问题的性质，智能选择最合适的工具组合来提供最佳解决方案。"""
@@ -109,9 +129,7 @@ class ChatBot:
         self.enable_result_processing = enable_result_processing
         self.result_processor = result_processor
 
-        self.prompt = ChatPromptTemplate.from_messages(
-            [("system", SimplePrompt), ("placeholder", "{messages}")]
-        )
+        # 初始化时不创建prompt，在chatbot方法中动态生成
 
         self.chain = None
 
@@ -127,14 +145,12 @@ class ChatBot:
         self.memory = AsyncPostgresSaver(conn)
 
         await self.memory.setup()
-        if not self.chain:
+        if not self.llm_with_tools:
             await get_tools()
             self.tools.extend(mcp_tools)
             print(self.tools)
             self.llm_with_tools = self.llm.bind_tools(tools=self.tools)
             self.tool_node = ToolNode(tools=self.tools)
-
-            self.chain = self.prompt | self.llm_with_tools
         self.graph = await self.create_graph()
 
     async def chatbot(self, state: ChatState):
@@ -145,7 +161,17 @@ class ChatBot:
         """
         messages = state["messages"]
         print(f"messages: {messages}")
-        response = await self.chain.ainvoke({"messages": messages})
+        print("chatbot")
+        
+        # 动态创建包含当前时间的prompt
+        current_prompt = ChatPromptTemplate.from_messages(
+            [("system", get_current_time_prompt()), ("placeholder", "{messages}")]
+        )
+        
+        # 创建包含当前时间信息的chain
+        chain = current_prompt | self.llm_with_tools
+        
+        response = await chain.ainvoke({"messages": messages})
         return {"messages": response}
 
     async def process_tool_results(self, state: ChatState):
@@ -155,7 +181,11 @@ class ChatBot:
         messages = state["messages"]
         processed_messages = []
 
-        for message in messages:
+        length = len(messages)
+        for i in range(length - 1, -1, -1):
+            message = messages[i]
+            if isinstance(message, HumanMessage):
+                break
             if isinstance(message, ToolMessage) and self.enable_result_processing:
                 # 获取工具名称
                 tool_name = getattr(message, "name", "unknown_tool")

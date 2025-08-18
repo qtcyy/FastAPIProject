@@ -125,6 +125,7 @@ async def summary_with_llm(response: str) -> str:
         )
 
         chain = prompt | llm | StrOutputParser()
+        print("summary_with_llm")
         summary_result = await chain.ainvoke({"search_content": response})
 
         # 组合总结和原始链接信息
