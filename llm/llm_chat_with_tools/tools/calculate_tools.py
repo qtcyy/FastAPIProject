@@ -128,8 +128,6 @@ class SafeMathEvaluator:
         """递归计算AST节点"""
         if isinstance(node, ast.Constant):
             return node.value
-        elif isinstance(node, ast.Num):  # Python < 3.8 兼容性
-            return node.n
         elif isinstance(node, ast.BinOp):
             left = self._eval_node(node.left)
             right = self._eval_node(node.right)
