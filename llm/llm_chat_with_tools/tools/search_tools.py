@@ -117,7 +117,7 @@ async def summary_with_llm(response: str) -> str:
         )
 
         llm = ChatOpenAI(
-            model="Qwen/Qwen3-30B-A3B-Instruct-2507",
+            model="qwen-turbo",
             base_url=app_config.deepseek_api_base,
             api_key=app_config.deepseek_api_key,
             temperature=0.3,  # 降低温度以获得更一致的输出
@@ -187,7 +187,7 @@ async def summary_crawled_content(content: str) -> str:
         )
 
         llm = ChatOpenAI(
-            model="Qwen/Qwen3-30B-A3B-Instruct-2507",
+            model="qwen-turbo",
             base_url=app_config.deepseek_api_base,
             api_key=app_config.deepseek_api_key,
             temperature=0.3,  # 降低温度以获得更一致的输出

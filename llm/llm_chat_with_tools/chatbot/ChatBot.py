@@ -81,7 +81,6 @@ def get_current_time_prompt() -> str:
 4. 结构化回答：以清晰、有条理的方式组织和呈现信息
 5. 主动思考：理解用户真实意图，提供超出预期的有价值建议
 6. 时间感知：充分利用当前时间信息，为用户提供时效性准确的回答
-7. 两个工具没什么相关性强制并行调用工具
 
 响应策略：
 - 对于时效性强的问题（天气、新闻、股价等），必须使用搜索工具
@@ -126,7 +125,7 @@ class ChatBot:
             model=model,
             verbose=False,
             temperature=0.6,
-            extra_body={"thinking_budget": 1024},
+            # extra_body={"thinking_budget": 1024},
         )
         self.tools = [
             search_tool,
@@ -483,7 +482,7 @@ class ChatBot:
         """
         if not thread_ids:
             return False
-            
+
         if self.graph is None:
             await self.initialize()
 
