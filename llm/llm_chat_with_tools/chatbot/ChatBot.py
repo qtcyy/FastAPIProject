@@ -81,6 +81,7 @@ def get_current_time_prompt() -> str:
 4. 结构化回答：以清晰、有条理的方式组织和呈现信息
 5. 主动思考：理解用户真实意图，提供超出预期的有价值建议
 6. 时间感知：充分利用当前时间信息，为用户提供时效性准确的回答
+7. 两个工具没什么相关性强制并行调用工具
 
 响应策略：
 - 对于时效性强的问题（天气、新闻、股价等），必须使用搜索工具
@@ -278,7 +279,9 @@ class ChatBot:
             event = chunk[0]
             config = chunk[1]
             if isinstance(event, AIMessageChunk):
-                if config.get("name") and config["name"] == "search":
+                if config.get("name") and (
+                    config["name"] == "search" or config["name"] == "process_results"
+                ):
                     continue
                 full_messages += event.content
                 print(event.content, end="")
@@ -303,19 +306,22 @@ class ChatBot:
             state = await self.graph.aget_state(config)
             if not (state and state.values and "messages" in state.values):
                 return "新对话"
-            
+
             messages: List[BaseMessage] = state.values["messages"]
             if not messages:
                 return "新对话"
-            
+
             # 提取对话内容用于生成标题
             conversation_content = self._extract_conversation_for_naming(messages)
             if not conversation_content.strip():
                 return "新对话"
-            
+
             # 创建专门的命名提示词
-            naming_prompt = ChatPromptTemplate.from_messages([
-                ("system", """你是一个专业的对话标题生成助手。请根据提供的对话内容，生成一个简洁、准确、有意义的对话标题。
+            naming_prompt = ChatPromptTemplate.from_messages(
+                [
+                    (
+                        "system",
+                        """你是一个专业的对话标题生成助手。请根据提供的对话内容，生成一个简洁、准确、有意义的对话标题。
 
 要求：
 1. 标题长度控制在8-15个字符
@@ -333,26 +339,32 @@ class ChatBot:
 - 数学计算问题 → "数学计算"
 - 工作规划讨论 → "工作规划"
 
-请直接输出标题，不要包含任何解释或额外文字。"""),
-                ("human", "请为以下对话生成标题：\n\n{conversation}")
-            ])
-            
+请直接输出标题，不要包含任何解释或额外文字。""",
+                    ),
+                    ("human", "请为以下对话生成标题：\n\n{conversation}"),
+                ]
+            )
+
             # 创建命名链
             naming_chain = naming_prompt | self.llm
-            
+
             # 生成标题
-            response = await naming_chain.ainvoke({"conversation": conversation_content})
-            
+            response = await naming_chain.ainvoke(
+                {"conversation": conversation_content}
+            )
+
             # 提取并清理标题
-            title = self._clean_generated_title(response.content if hasattr(response, 'content') else str(response))
-            
+            title = self._clean_generated_title(
+                response.content if hasattr(response, "content") else str(response)
+            )
+
             print(f"为对话 {thread_id} 生成标题: {title}")
             return title
-            
+
         except Exception as e:
             print(f"Error generating chat name: {e}")
             return "新对话"
-    
+
     def _extract_conversation_for_naming(self, messages: List[BaseMessage]) -> str:
         """
         从消息列表中提取用于命名的关键对话内容
@@ -362,14 +374,14 @@ class ChatBot:
         conversation_parts = []
         human_messages = []
         ai_messages = []
-        
+
         # 提取前几轮对话，重点关注用户问题和AI回答
         for message in messages:
             if isinstance(message, HumanMessage):
                 human_messages.append(message.content)
             elif isinstance(message, AIMessage):
                 ai_messages.append(message.content)
-        
+
         # 优先使用前3个用户消息，这通常能反映对话主题
         for i, human_msg in enumerate(human_messages[:3]):
             conversation_parts.append(f"用户: {human_msg}")
@@ -377,16 +389,16 @@ class ChatBot:
             if i < len(ai_messages):
                 ai_response = ai_messages[i][:200]  # 限制AI回答长度
                 conversation_parts.append(f"助手: {ai_response}")
-        
+
         # 组合对话内容，控制总长度
         conversation_text = "\n".join(conversation_parts)
-        
+
         # 限制总长度，避免token过多
         if len(conversation_text) > 1000:
             conversation_text = conversation_text[:1000] + "..."
-        
+
         return conversation_text
-    
+
     def _clean_generated_title(self, raw_title: str) -> str:
         """
         清理和优化生成的标题
@@ -395,26 +407,33 @@ class ChatBot:
         """
         if not raw_title:
             return "新对话"
-        
+
         # 移除可能的引号、换行符等
-        title = raw_title.strip().strip('"\'""''').strip()
-        
+        title = raw_title.strip().strip('"\'""' "").strip()
+
         # 移除可能的前缀
-        prefixes_to_remove = ["标题：", "标题:", "对话标题：", "对话标题:", "题目：", "题目:"]
+        prefixes_to_remove = [
+            "标题：",
+            "标题:",
+            "对话标题：",
+            "对话标题:",
+            "题目：",
+            "题目:",
+        ]
         for prefix in prefixes_to_remove:
             if title.startswith(prefix):
-                title = title[len(prefix):].strip()
-        
+                title = title[len(prefix) :].strip()
+
         # 长度控制
         if len(title) > 20:
             title = title[:17] + "..."
         elif len(title) < 2:
             title = "新对话"
-        
+
         # 如果标题为空或只包含标点符号，返回默认值
         if not title or title.isspace() or all(c in "。，、；：！？" for c in title):
             return "新对话"
-        
+
         return title
 
     async def get_history(self, thread_id: str) -> List[BaseMessage]:

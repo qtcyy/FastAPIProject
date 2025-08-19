@@ -27,11 +27,11 @@ class MCPResultProcessor:
     def __init__(self):
         """初始化结果处理器"""
         self.llm = ChatOpenAI(
-            model_name="Qwen/Qwen2.5-32B-Instruct",
+            model="Qwen/Qwen3-30B-A3B-Instruct-2507",
             temperature=0.3,
             max_tokens=1024,
-            base_url="https://api-inference.modelscope.cn/v1",
-            api_key="a5a8fdf1-e914-4c1e-ac56-82888ec1be87",
+            base_url="https://api.siliconflow.cn/v1/",
+            api_key="sk-klxcwiidfejlwzupobhtdvwkzdvwtsxqekqucykewmyfryis",
         )
 
         # 摘要提示模板
