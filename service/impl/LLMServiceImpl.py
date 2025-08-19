@@ -200,3 +200,27 @@ class LLMServiceImpl(LLMService):
         :return: 生成的对话标题
         """
         return await self.chatbot.named_chat(thread_id)
+
+    @override
+    async def delete_threads_batch(self, thread_ids: List[str]) -> dict[str, Any]:
+        """
+        批量删除多个对话线程
+        :param thread_ids: 线程ID列表
+        :return: 删除状态
+        """
+        if not thread_ids:
+            return {"message": "error", "error": "No thread IDs provided"}
+        
+        state = await self.chatbot.delete_history_batch(thread_ids)
+        if state:
+            return {
+                "message": "success", 
+                "deleted_count": len(thread_ids),
+                "thread_ids": thread_ids
+            }
+        else:
+            return {
+                "message": "error", 
+                "error": "Failed to delete threads",
+                "thread_ids": thread_ids
+            }

@@ -64,3 +64,6 @@ class LLMService(ABC):
 
     @abstractmethod
     async def generate_chat_name(self, thread_id: str) -> str: ...
+
+    @abstractmethod
+    async def delete_threads_batch(self, thread_ids: List[str]) -> dict[str, Any]: ...

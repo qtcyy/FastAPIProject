@@ -7,6 +7,7 @@ from service.impl.LLMServiceImpl import LLMService, LLMServiceImpl
 from vo.ChatAgentRequest import ChatAgentRequest
 from vo.EditMessageRequest import EditMessageRequest, EditWithIDRequest
 from vo.HouseInfoRequest import HouseInfoRequest
+from vo.BatchDeleteRequest import BatchDeleteRequest
 
 
 class LLMController:
@@ -30,6 +31,7 @@ class LLMController:
         self.router.post("/chat/history/delete/after")(
             self.delete_messages_after_with_id
         )
+        self.router.post("/chat/history/batch/delete")(self.delete_threads_batch)
         self.router.post("/chat/name/{thread_id}")(self.generate_chat_name)
 
     async def get_house_info(self, request: HouseInfoRequest):
@@ -134,6 +136,17 @@ class LLMController:
         return await self.llm_service.delete_messages_after_with_id(
             request.thread_id, request.message_id
         )
+
+    async def delete_threads_batch(self, request: BatchDeleteRequest) -> dict[str, Any]:
+        """
+        批量删除多个对话线程
+        :param request: 批量删除请求体
+        :return: 删除状态
+        """
+        if not request.thread_ids:
+            raise HTTPException(status_code=400, detail="线程ID列表不能为空")
+        
+        return await self.llm_service.delete_threads_batch(request.thread_ids)
 
     async def generate_chat_name(self, thread_id: str) -> dict[str, str]:
         """

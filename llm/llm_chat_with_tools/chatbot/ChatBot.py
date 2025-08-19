@@ -475,6 +475,32 @@ class ChatBot:
             print(f"Error deleting history: {str(e)}")
             return False
 
+    async def delete_history_batch(self, thread_ids: List[str]) -> bool:
+        """
+        批量删除多个对话历史记录
+        :param thread_ids: 线程ID列表
+        :return: bool 删除状态
+        """
+        if not thread_ids:
+            return False
+            
+        if self.graph is None:
+            await self.initialize()
+
+        assert self.memory is not None, "Memory should be initialized"
+
+        success_count = 0
+        for thread_id in thread_ids:
+            try:
+                await self.memory.adelete_thread(thread_id)
+                success_count += 1
+                print(f"Successfully deleted thread: {thread_id}")
+            except Exception as e:
+                print(f"Error deleting thread {thread_id}: {str(e)}")
+
+        # 如果至少有一个删除成功，返回True
+        return success_count > 0
+
     async def edit_message(
         self, thread_id: str, message_idx: int, new_content: str
     ) -> bool:
