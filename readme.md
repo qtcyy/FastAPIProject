@@ -111,6 +111,23 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 - `GET /chat/history/{thread_id}` - 获取对话历史
 - `DELETE /chat/history/{thread_id}` - 删除对话线程
 
+### 星标对话功能
+- `POST /chat/star` - 收藏对话线程
+  - **请求参数**：
+    ```json
+    {
+      "thread_id": "string"      // 要收藏的线程ID
+    }
+    ```
+  - **响应格式**：
+    ```json
+    {
+      "message": "success|already_starred|error",
+      "status": true|false,
+      "error": "错误信息（如有）"
+    }
+    ```
+
 ### 消息管理
 - `GET /chat/message/{thread_id}/{message_id}` - 根据消息ID获取指定消息
 - `POST /chat/history/edit` - 编辑消息（按索引）
@@ -181,18 +198,27 @@ FastAPIProject/
 │       └── llm_func.py
 ├── dao/                       # 数据访问层（含 __init__.py）
 │   ├── __init__.py
-│   ├── entity/
-│   └── test/
+│   ├── README.md              # 数据库层使用指南
+│   ├── database.py            # 数据库工具类和会话管理
+│   ├── entity/                # 数据模型定义
+│   │   ├── __init__.py
+│   │   ├── base_modal.py      # 基础模型类（自动时间戳）
+│   │   ├── stared_chat.py     # 星标对话模型
+│   │   ├── timestamp_mixin.py # 时间戳混入类
+│   │   └── example_models.py  # 示例模型定义
+│   └── test/                  # 数据库测试
 │       ├── __init__.py
 │       ├── SQLTest.py
 │       ├── file_test.py
+│       ├── auto_update_time_test.py  # 自动时间戳测试
 │       └── file.txt
 ├── vo/                        # 数据传输对象（含 __init__.py）
 │   ├── __init__.py
 │   ├── BatchDeleteRequest.py
 │   ├── ChatAgentRequest.py
 │   ├── EditMessageRequest.py
-│   └── HouseInfoRequest.py
+│   ├── HouseInfoRequest.py
+│   └── StarChatRequest.py     # 星标对话请求模型
 ├── Test/                      # 测试模块（含 __init__.py）
 │   ├── __init__.py
 │   ├── multi_agent.py         # 多智能体测试框架
@@ -219,6 +245,32 @@ FastAPIProject/
 - ✅ 更好的 IDE 支持和代码补全
 - ✅ 清晰的模块边界和依赖关系
 
+### 数据库开发指南
+项目使用自动时间戳管理和统一的数据库工具：
+- **BaseModal**: 基础模型类，继承后自动具备 `create_time` 和 `update_time` 字段
+- **TimestampMixin**: 时间戳混入类，提供自动时间管理功能
+- **DatabaseOperations**: 统一的CRUD操作工具类（可通过 `db` 实例访问）
+- **get_session()**: 数据库会话上下文管理器，自动处理事务提交和回滚
+
+```python
+# 使用示例
+from dao.entity.base_modal import BaseModal
+from dao.database import db, get_session
+
+class User(BaseModal, table=True):
+    __tablename__ = "users"
+    id: int | None = Field(default=None, primary_key=True)
+    name: str = Field(description="用户名")
+
+# CRUD操作
+user = User(name="张三")
+created_user = db.create(user)  # create_time和update_time自动设置
+
+# 更新操作
+user.name = "李四"
+updated_user = db.update(user)  # update_time自动更新
+```
+
 ### 测试
 - 使用 `test_main.http` 文件测试 API 接口
 - 访问 `http://localhost:8000/docs` 查看自动生成的 API 文档
@@ -226,7 +278,8 @@ FastAPIProject/
 - 运行 `python Test/multi_agent.py` 测试多智能体协作功能
 - 运行 `python test_chat_naming.py` 测试智能对话命名功能
 - 运行 `python test_result_processing.py` 测试结果处理功能
-- 运行 `dao/test/` 中的数据库测试文件
+- 运行 `dao/test/auto_update_time_test.py` 测试数据库自动时间戳功能
+- 运行 `dao/test/` 中的其他数据库测试文件
 
 ### 扩展功能
 - 在 `llm/llm_chat_with_tools/tools/` 目录下添加新的工具函数
