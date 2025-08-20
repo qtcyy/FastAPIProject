@@ -62,11 +62,17 @@ class LLMServiceImpl(LLMService):
 
     @override
     async def chat_with_tools(
-        self, query: str, thread_id: str, model: str = "Qwen/Qwen2.5-7B-Instruct", summary_with_llm: bool = False
+        self,
+        query: str,
+        thread_id: str,
+        model: str = "Qwen/Qwen2.5-7B-Instruct",
+        summary_with_llm: bool = False,
     ) -> Any:
         custom_chatbot = ChatBot(model=model)
         return StreamingResponse(
-            custom_chatbot.generate(query=query, thread_id=thread_id, summary_with_llm=summary_with_llm),
+            custom_chatbot.generate(
+                query=query, thread_id=thread_id, summary_with_llm=summary_with_llm
+            ),
             media_type="text/event-stream",
             headers={
                 "Cache-Control": "no-cache",
@@ -181,9 +187,7 @@ class LLMServiceImpl(LLMService):
             return {"message": "failed", "status": False}
 
     @override
-    async def get_message_by_id(
-        self, thread_id: str, message_id: str
-    ) -> BaseMessage:
+    async def get_message_by_id(self, thread_id: str, message_id: str) -> BaseMessage:
         """
         根据消息ID获取指定消息
         :param thread_id: 线程ID
@@ -199,7 +203,9 @@ class LLMServiceImpl(LLMService):
         :param thread_id: 线程ID
         :return: 生成的对话标题
         """
-        return await self.chatbot.named_chat(thread_id)
+        chatbot = ChatBot(model="qwen-turbo-latest")
+
+        return await chatbot.named_chat(thread_id)
 
     @override
     async def delete_threads_batch(self, thread_ids: List[str]) -> dict[str, Any]:
@@ -210,17 +216,17 @@ class LLMServiceImpl(LLMService):
         """
         if not thread_ids:
             return {"message": "error", "error": "No thread IDs provided"}
-        
+
         state = await self.chatbot.delete_history_batch(thread_ids)
         if state:
             return {
-                "message": "success", 
+                "message": "success",
                 "deleted_count": len(thread_ids),
-                "thread_ids": thread_ids
+                "thread_ids": thread_ids,
             }
         else:
             return {
-                "message": "error", 
+                "message": "error",
                 "error": "Failed to delete threads",
-                "thread_ids": thread_ids
+                "thread_ids": thread_ids,
             }
