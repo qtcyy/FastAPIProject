@@ -3,7 +3,6 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from controller.LLMController import LLMController
-from controller.SecurityController import SecurityController
 
 app = FastAPI()
 
@@ -17,9 +16,7 @@ app.add_middleware(
 )
 
 llm_controller = LLMController()
-security_controller = SecurityController()
 app.include_router(llm_controller.router)
-app.include_router(security_controller.router)
 
 
 if __name__ == "__main__":
