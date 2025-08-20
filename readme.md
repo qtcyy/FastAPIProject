@@ -142,35 +142,82 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 ```
 FastAPIProject/
 ├── main.py                     # FastAPI 应用入口
-├── controller/                 # 控制器层
+├── config.py                   # 全局配置文件
+├── CLAUDE.md                   # Claude Code 项目指南
+├── SECURITY.md                 # 安全说明文档
+├── controller/                 # 控制器层（含 __init__.py）
+│   ├── __init__.py            # Python 包初始化
 │   ├── LLMController.py       # LLM 相关接口
-│   └── SecurityController.py  # 安全相关接口
-├── service/                   # 服务层
+│   └── UserController.py      # 用户相关接口
+├── service/                   # 服务层（含 __init__.py）
+│   ├── __init__.py
 │   ├── LLMService.py
-│   └── impl/LLMServiceImpl.py
-├── llm/                       # AI 功能模块
+│   └── impl/
+│       ├── __init__.py
+│       └── LLMServiceImpl.py
+├── llm/                       # AI 功能模块（含 __init__.py）
+│   ├── __init__.py
 │   ├── llm_chat_with_tools/   # 带工具的对话系统
+│   │   ├── __init__.py
+│   │   ├── README.md          # 模块详细文档
 │   │   ├── chatbot/           # ChatBot 核心实现
+│   │   │   ├── __init__.py
 │   │   │   └── ChatBot.py
 │   │   └── tools/             # 工具集成
+│   │       ├── __init__.py
 │   │       ├── calculate_tools.py    # 强化数学计算工具
 │   │       ├── search_tools.py       # 智能搜索和爬取工具（含LLM总结）
 │   │       └── result_processor.py   # MCP结果处理器
 │   ├── llm_praser/            # 输出解析
+│   │   ├── __init__.py
+│   │   ├── llm_func.py
+│   │   ├── llm_graph.py
+│   │   ├── llm_out.py
+│   │   └── llm_schema.py
 │   └── llm_chat/              # 基础对话
-├── dao/                       # 数据访问层
-├── vo/                        # 数据传输对象
-├── Test/                      # 测试模块
+│       ├── __init__.py
+│       ├── chat_graph.py
+│       ├── chat_schema.py
+│       └── llm_func.py
+├── dao/                       # 数据访问层（含 __init__.py）
+│   ├── __init__.py
+│   ├── entity/
+│   └── test/
+│       ├── __init__.py
+│       ├── SQLTest.py
+│       ├── file_test.py
+│       └── file.txt
+├── vo/                        # 数据传输对象（含 __init__.py）
+│   ├── __init__.py
+│   ├── BatchDeleteRequest.py
+│   ├── ChatAgentRequest.py
+│   ├── EditMessageRequest.py
+│   └── HouseInfoRequest.py
+├── Test/                      # 测试模块（含 __init__.py）
+│   ├── __init__.py
 │   ├── multi_agent.py         # 多智能体测试框架
 │   └── multi_agent_test_report.json  # 测试报告
 ├── test_enhanced_calculate.py # 计算工具测试
+├── test_chat_naming.py        # 对话命名测试
+├── test_result_processing.py  # 结果处理测试
 └── test_main.http             # API 测试文件
 ```
 
 ## 开发说明
 
 ### 配置环境变量
-在 ChatBot 类中配置相关 API 密钥和数据库连接信息。
+项目使用 `config.py` 统一管理配置，包含：
+- API 密钥（DeepSeek、搜索服务等）
+- 数据库连接信息
+- MCP 服务器配置
+- 外部服务端点
+
+### 代码结构优化
+项目已完成 Python 包结构优化：
+- ✅ 所有目录都包含 `__init__.py` 文件
+- ✅ 规范的 Python 包导入结构
+- ✅ 更好的 IDE 支持和代码补全
+- ✅ 清晰的模块边界和依赖关系
 
 ### 测试
 - 使用 `test_main.http` 文件测试 API 接口
@@ -178,6 +225,7 @@ FastAPIProject/
 - 运行 `python test_enhanced_calculate.py` 测试数学计算功能
 - 运行 `python Test/multi_agent.py` 测试多智能体协作功能
 - 运行 `python test_chat_naming.py` 测试智能对话命名功能
+- 运行 `python test_result_processing.py` 测试结果处理功能
 - 运行 `dao/test/` 中的数据库测试文件
 
 ### 扩展功能
@@ -185,6 +233,13 @@ FastAPIProject/
 - 在 `controller/` 中添加新的 API 端点
 - 在 `vo/` 中定义新的请求/响应模型
 - 通过 MCP 客户端集成外部服务和工具
+- 参考 `llm/llm_chat_with_tools/README.md` 了解工具开发详情
+
+### 文档结构
+- `CLAUDE.md` - Claude Code 集成和开发指南
+- `SECURITY.md` - 项目安全说明和最佳实践
+- `llm/llm_chat_with_tools/README.md` - 工具模块详细文档
+- `readme.md` - 项目主要文档（本文件）
 
 ## 安全特性
 
