@@ -8,6 +8,7 @@ from vo.ChatAgentRequest import ChatAgentRequest
 from vo.EditMessageRequest import EditMessageRequest, EditWithIDRequest
 from vo.HouseInfoRequest import HouseInfoRequest
 from vo.BatchDeleteRequest import BatchDeleteRequest
+from vo.StarChatRequest import StartChatRequest
 
 
 class LLMController:
@@ -33,6 +34,7 @@ class LLMController:
         )
         self.router.post("/chat/history/batch/delete")(self.delete_threads_batch)
         self.router.post("/chat/name/{thread_id}")(self.generate_chat_name)
+        self.router.post("/chat/star")(self.star_chat)
 
     async def get_house_info(self, request: HouseInfoRequest):
         return await self.llm_service.get_house_info_service(request.query)
@@ -145,7 +147,7 @@ class LLMController:
         """
         if not request.thread_ids:
             raise HTTPException(status_code=400, detail="线程ID列表不能为空")
-        
+
         return await self.llm_service.delete_threads_batch(request.thread_ids)
 
     async def generate_chat_name(self, thread_id: str) -> dict[str, str]:
@@ -159,3 +161,11 @@ class LLMController:
             return {"thread_id": thread_id, "title": title, "status": "success"}
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"生成对话标题失败: {str(e)}")
+
+    async def star_chat(self, request: StartChatRequest) -> dict[str, Any]:
+        """
+        收藏对话
+        :param request: 收藏对话请求
+        :return: 收藏状态
+        """
+        return await self.llm_service.star_chat(request.thread_id)

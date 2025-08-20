@@ -1,13 +1,18 @@
+import uuid
 from typing import Any, override, List
 
 from langchain_core.messages import BaseMessage
 
+from dao.database import get_session, create_db_and_tables
+from dao.entity.stared_chat import StaredChat
 from llm.llm_chat.chat_graph import AgentClass
 from llm.llm_chat_with_tools.chatbot.ChatBot import ChatBot
 from llm.llm_praser.llm_out import LLMOut
 from llm.llm_praser.llm_schema import Houses
 from service.LLMService import LLMService
 from fastapi.responses import StreamingResponse
+
+from vo.StarChatRequest import StartChatRequest
 
 
 class LLMServiceImpl(LLMService):
@@ -229,4 +234,84 @@ class LLMServiceImpl(LLMService):
                 "message": "error",
                 "error": "Failed to delete threads",
                 "thread_ids": thread_ids,
+            }
+
+    @override
+    async def star_chat(self, thread_id: uuid.UUID) -> dict[str, Any]:
+        """
+        收藏对话线程
+        
+        Args:
+            thread_id: 要收藏的对话线程ID
+            
+        Returns:
+            dict: 操作结果，包含状态信息
+        """
+        try:
+            # 使用数据库会话管理器确保事务安全
+            with get_session() as session:
+                # 检查是否已经收藏过该线程
+                existing = session.query(StaredChat).filter(
+                    StaredChat.thread_id == thread_id
+                ).first()
+                
+                if existing:
+                    return {
+                        "message": "already_starred",
+                        "status": False,
+                        "error": "该对话已经收藏过了"
+                    }
+                
+                # 创建新的收藏记录
+                entity = StaredChat(thread_id=thread_id)
+                session.add(entity)
+                session.commit()
+                
+            return {"message": "success", "status": True}
+            
+        except Exception as e:
+            # 记录错误日志
+            print(f"收藏对话失败 - thread_id: {thread_id}, 错误: {str(e)}")
+            return {
+                "message": "error",
+                "status": False,
+                "error": f"收藏对话时发生错误: {str(e)}"
+            }
+
+    @override
+    async def get_stared_chat(self) -> dict[str, Any]:
+        """
+        获取所有收藏的对话线程ID列表
+        
+        Returns:
+            dict: 包含收藏的对话ID列表、数量和状态信息
+        """
+        try:
+            stared_chat_list: List[StaredChat] = []
+            
+            # 使用数据库会话管理器进行查询
+            with get_session() as session:
+                # 按创建时间排序查询所有收藏记录
+                statement = session.query(StaredChat).order_by(StaredChat.create_at)
+                stared_chat_list = session.exec(statement).all()
+
+            # 提取所有收藏的对话线程ID
+            chat_ids: List[uuid.UUID] = [entity.thread_id for entity in stared_chat_list]
+
+            return {
+                "message": "success",
+                "status": True,
+                "chat_ids": chat_ids,
+                "count": len(chat_ids)
+            }
+            
+        except Exception as e:
+            # 记录错误日志并返回错误信息
+            print(f"获取收藏对话列表失败，错误: {str(e)}")
+            return {
+                "message": "error",
+                "status": False,
+                "error": f"获取收藏列表时发生错误: {str(e)}",
+                "chat_ids": [],
+                "count": 0
             }

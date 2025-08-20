@@ -1,3 +1,4 @@
+import uuid
 from abc import abstractmethod, ABC
 from typing import Any, List
 
@@ -24,7 +25,9 @@ class LLMService(ABC):
     async def clean_thread_messages(self, thread_id: str) -> Any: ...
 
     @abstractmethod
-    async def chat_with_tools(self, query: str, thread_id: str, model: str, summary_with_llm: bool = False) -> Any: ...
+    async def chat_with_tools(
+        self, query: str, thread_id: str, model: str, summary_with_llm: bool = False
+    ) -> Any: ...
 
     @abstractmethod
     async def get_history(self, thread_id: str) -> List[BaseMessage]: ...
@@ -67,3 +70,9 @@ class LLMService(ABC):
 
     @abstractmethod
     async def delete_threads_batch(self, thread_ids: List[str]) -> dict[str, Any]: ...
+
+    @abstractmethod
+    async def star_chat(self, thread_id: uuid.UUID) -> dict[str, Any]: ...
+
+    @abstractmethod
+    async def get_stared_chat(self) -> dict[str, Any]: ...
