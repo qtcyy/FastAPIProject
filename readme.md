@@ -94,7 +94,57 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 
 ## API 接口
 
-### 对话接口
+### 对话管理接口
+- `POST /chat` - 创建新对话
+  - **请求参数**：
+    ```json
+    {
+      "user_id": "uuid",      // 用户UUID
+      "title": "string"       // 可选：对话标题，默认"Untitled"
+    }
+    ```
+  - **响应格式**：
+    ```json
+    {
+      "message": "success",
+      "status": true,
+      "data": {
+        "chat_id": "uuid",
+        "title": "string",
+        "user_id": "uuid",
+        "created_at": "ISO时间戳"
+      }
+    }
+    ```
+- `GET /chat/user/{user_id}` - 获取用户所有对话
+  - **响应格式**：
+    ```json
+    {
+      "message": "success",
+      "status": true,
+      "chats": [{
+        "id": "uuid",
+        "title": "string",
+        "user_id": "uuid",
+        "stared": false,
+        "create_time": "ISO时间戳",
+        "update_time": "ISO时间戳"
+      }],
+      "count": 0
+    }
+    ```
+- `PUT /chat/{thread_id}` - 更新对话信息
+  - **请求参数**：
+    ```json
+    {
+      "thread_id": "uuid",    // 对话ID
+      "title": "string",      // 可选：新标题
+      "stared": false         // 可选：收藏状态
+    }
+    ```
+- `DELETE /chat/{thread_id}` - 删除对话（包含历史记录）
+
+### 对话工具接口
 - `POST /chat/tools` - 带工具的智能对话
   - **请求参数**：
     ```json
@@ -111,20 +161,40 @@ uvicorn main:app --host 0.0.0.0 --port 8000
 - `GET /chat/history/{thread_id}` - 获取对话历史
 - `DELETE /chat/history/{thread_id}` - 删除对话线程
 
-### 星标对话功能
-- `POST /chat/star` - 收藏对话线程
-  - **请求参数**：
-    ```json
-    {
-      "thread_id": "string"      // 要收藏的线程ID
-    }
-    ```
+### 收藏对话功能
+- `POST /chat/{thread_id}/star` - 收藏对话线程
   - **响应格式**：
     ```json
     {
       "message": "success|already_starred|error",
       "status": true|false,
+      "data": {"starred_thread_id": "uuid"},
       "error": "错误信息（如有）"
+    }
+    ```
+- `GET /chat/starred` - 获取所有收藏的对话
+  - **响应格式**：
+    ```json
+    {
+      "message": "success",
+      "status": true,
+      "chat_ids": ["uuid1", "uuid2"],
+      "count": 2
+    }
+    ```
+- `POST /chat/toggle_star` - 切换对话收藏状态
+  - **请求参数**：
+    ```json
+    {
+      "thread_id": "uuid"      // 要切换状态的线程ID
+    }
+    ```
+  - **响应格式**：
+    ```json
+    {
+      "message": "success",
+      "status": true,
+      "current_state": true    // 当前收藏状态
     }
     ```
 
@@ -203,6 +273,7 @@ FastAPIProject/
 │   ├── entity/                # 数据模型定义
 │   │   ├── __init__.py
 │   │   ├── base_modal.py      # 基础模型类（自动时间戳）
+│   │   ├── chat_models.py     # 对话模型（Chat表）
 │   │   ├── stared_chat.py     # 星标对话模型
 │   │   ├── timestamp_mixin.py # 时间戳混入类
 │   │   └── example_models.py  # 示例模型定义
@@ -216,9 +287,12 @@ FastAPIProject/
 │   ├── __init__.py
 │   ├── BatchDeleteRequest.py
 │   ├── ChatAgentRequest.py
+│   ├── ChatResponse.py        # 统一响应模型
+│   ├── CreateChatRequest.py   # 创建对话请求模型
 │   ├── EditMessageRequest.py
 │   ├── HouseInfoRequest.py
-│   └── StarChatRequest.py     # 星标对话请求模型
+│   ├── StarChatRequest.py     # 星标对话请求模型
+│   └── UpdateChatRequest.py   # 更新对话请求模型
 ├── Test/                      # 测试模块（含 __init__.py）
 │   ├── __init__.py
 │   ├── multi_agent.py         # 多智能体测试框架
@@ -226,6 +300,7 @@ FastAPIProject/
 ├── test_enhanced_calculate.py # 计算工具测试
 ├── test_chat_naming.py        # 对话命名测试
 ├── test_result_processing.py  # 结果处理测试
+├── test_controller_endpoints.py # Controller端点测试脚本
 └── test_main.http             # API 测试文件
 ```
 

@@ -4,6 +4,8 @@ from typing import Any, List
 
 from langchain_core.messages import BaseMessage
 
+from dao.entity.chat_models import Chat
+
 
 class LLMService(ABC):
     def __init__(self):
@@ -72,7 +74,22 @@ class LLMService(ABC):
     async def delete_threads_batch(self, thread_ids: List[str]) -> dict[str, Any]: ...
 
     @abstractmethod
+    async def create_chat(self, user_id: uuid.UUID) -> dict[str, Any]: ...
+
+    @abstractmethod
+    async def get_chat(self, user_id: uuid.UUID) -> dict[str, Any]: ...
+
+    @abstractmethod
+    async def delete_chat(self, thread_id: uuid.UUID): ...
+
+    @abstractmethod
+    async def update_chat(self, chat: Chat) -> dict[str, Any]: ...
+
+    @abstractmethod
     async def star_chat(self, thread_id: uuid.UUID) -> dict[str, Any]: ...
+
+    @abstractmethod
+    async def toggle_star_chat(self, thread_id: uuid.UUID) -> dict[str, Any]: ...
 
     @abstractmethod
     async def get_stared_chat(self) -> dict[str, Any]: ...
